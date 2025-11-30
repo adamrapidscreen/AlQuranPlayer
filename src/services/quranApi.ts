@@ -1,35 +1,30 @@
 import axios from 'axios';
 import { AyahWithTranslation } from '../types/index';
 
-const API_BASE = 'https://quranapi.pages.dev/api';
+const API_BASE = 'https://api.alquran.cloud/v1';
 
 export const quranApi = {
-  // Get single verse
-  async getAyah(surahNumber: number, ayahNumber: number) {
-    try {
-      const response = await axios.get(
-        `${API_BASE}/${surahNumber}/${ayahNumber}.json`
-      );
-      console.log(
-        `Fetched Surah ${surahNumber}, Ayah ${ayahNumber}:`,
-        response.data
-      );
-      return response.data;
-    } catch (error) {
-      console.error(
-        `Error fetching Surah ${surahNumber}, Ayah ${ayahNumber}:`,
-        error
-      );
-      throw error;
-    }
-  },
-
-  // Get full surah
+  // Get full surah with Arabic + English
   async getSurah(surahNumber: number) {
     try {
-      const response = await axios.get(`${API_BASE}/${surahNumber}.json`);
-      console.log(`Fetched Surah ${surahNumber}:`, response.data);
-      return response.data;
+      console.log(`Fetching Surah ${surahNumber} from API...`);
+      
+      // Get Arabic
+      const arabicResponse = await axios.get(
+        `${API_BASE}/surah/${surahNumber}`
+      );
+      
+      // Get English translation
+      const englishResponse = await axios.get(
+        `${API_BASE}/surah/${surahNumber}/en.asad`
+      );
+
+      console.log(`Successfully fetched Surah ${surahNumber}`);
+      
+      return {
+        arabic: arabicResponse.data.data.ayahs,
+        english: englishResponse.data.data.ayahs,
+      };
     } catch (error) {
       console.error(`Error fetching Surah ${surahNumber}:`, error);
       throw error;
@@ -38,16 +33,38 @@ export const quranApi = {
 
   // Format ayahs with translation
   formatAyahs(data: any): AyahWithTranslation[] {
-    if (!data.ayahs) {
-      console.warn('No ayahs found in response');
+    console.log('formatAyahs called');
+    
+    if (!data.arabic || !data.english) {
+      console.warn('Missing arabic or english data');
       return [];
     }
 
-    return data.ayahs.map((ayah: any) => ({
-      number: ayah.number,
-      text: ayah.text || '',
-      numberInSurah: ayah.numberInSurah,
-      englishText: ayah.englishText || '',
+    const formatted = data.arabic.map((arabicAyah: any, index: number) => ({
+      number: arabicAyah.number,
+      text: arabicAyah.text || '',
+      numberInSurah: arabicAyah.numberInSurah,
+      englishText: data.english[index]?.text || '',
     }));
+
+    console.log(`Formatted ${formatted.length} ayahs`);
+    return formatted;
+  },
+
+  // Get reciter audio URL
+  getReciterAudioUrl(
+    surahNumber: number,
+    ayahNumber: number,
+    reciterId: string
+  ): string {
+    const reciterMap: { [key: string]: string } = {
+      mishary: 'ar.alafasy',
+      shatri: 'ar.shatri',
+      qatami: 'ar.qahtani',
+      dosari: 'ar.dosari',
+    };
+
+    const reciter = reciterMap[reciterId] || 'ar.alafasy';
+    return `${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${reciter}`;
   },
 };
