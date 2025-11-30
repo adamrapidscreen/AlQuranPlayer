@@ -15,15 +15,15 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   console.log(
-    `PlayerScreen opened for surah ${surahNumber} with ${selectedReciter}`
+    `PlayerScreen opened for surah ${surahNumber} with reciter ${selectedReciter}`
   );
+
+  const reciterName = getReciterName(selectedReciter);
 
   return (
     <View style={styles.container}>
       <Text style={styles.surahTitle}>Surah {surahNumber}</Text>
-      <Text style={styles.reciter}>
-        Reciter: {getReciterName(selectedReciter)}
-      </Text>
+      <Text style={styles.reciter}>Reciter: {reciterName}</Text>
 
       <ScrollView style={styles.textArea}>
         <Text style={styles.arabicText}>
@@ -37,10 +37,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       <View style={styles.controls}>
         <TouchableOpacity
           style={styles.playButton}
-          onPress={() => {
-            setIsPlaying(!isPlaying);
-            console.log(isPlaying ? 'Paused' : 'Playing');
-          }}
+          onPress={() => setIsPlaying(!isPlaying)}
         >
           <Text style={styles.playButtonText}>
             {isPlaying ? '⏸ Pause' : '▶ Play'}
@@ -61,45 +58,45 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 5,
+    textAlign: 'center',
+    marginBottom: 10,
   },
   reciter: {
-    fontSize: 14,
-    color: '#aaa',
+    fontSize: 16,
+    color: '#4CAF50',
+    textAlign: 'center',
     marginBottom: 20,
   },
   textArea: {
     flex: 1,
-    backgroundColor: '#222',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
+    marginVertical: 20,
   },
   arabicText: {
-    fontSize: 20,
+    fontSize: 24,
     color: '#fff',
-    lineHeight: 32,
-    marginBottom: 15,
     textAlign: 'right',
+    marginBottom: 20,
+    lineHeight: 40,
   },
   englishText: {
-    fontSize: 14,
-    color: '#bbb',
-    lineHeight: 22,
+    fontSize: 16,
+    color: '#ccc',
+    textAlign: 'left',
+    marginBottom: 20,
+    lineHeight: 24,
   },
   controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    paddingVertical: 20,
   },
   playButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 50,
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
   },
   playButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });

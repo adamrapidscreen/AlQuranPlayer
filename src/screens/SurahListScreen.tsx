@@ -53,14 +53,14 @@ export const SurahListScreen = ({ navigation }: any) => {
       <Text style={styles.header}>
         Surahs - {getReciterName(selectedReciter)}
       </Text>
-
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#4CAF50" style={styles.loader} />
       ) : (
         <FlatList
           data={surahs}
           renderItem={renderSurah}
           keyExtractor={(item) => item.number.toString()}
+          style={styles.list}
         />
       )}
     </View>
@@ -71,48 +71,55 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-    paddingTop: 10,
+    padding: 10,
   },
   header: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    textAlign: 'center',
+    marginVertical: 15,
+  },
+  loader: {
+    marginTop: 50,
+  },
+  list: {
+    flex: 1,
   },
   surahItem: {
     flexDirection: 'row',
+    backgroundColor: '#2a2a2a',
+    padding: 15,
+    marginVertical: 5,
+    borderRadius: 10,
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   surahNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#007AFF',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 15,
   },
   surahNumberText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   surahInfo: {
     flex: 1,
-    marginLeft: 15,
   },
   surahNameArabic: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
+    marginBottom: 5,
   },
   surahNameEnglish: {
-    color: '#aaa',
-    fontSize: 12,
-    marginTop: 3,
+    color: '#ccc',
+    fontSize: 14,
   },
   ayahCount: {
     color: '#888',

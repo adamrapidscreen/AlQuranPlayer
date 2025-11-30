@@ -12,10 +12,20 @@ export const HomeScreen = ({ navigation }: any) => {
     navigation.navigate('SurahList');
   };
 
+  const currentReciterName = RECITERS.find(
+    (r) => r.id === selectedReciter
+  )?.name;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Al-Quran Player</Text>
       <Text style={styles.subtitle}>Select a Reciter</Text>
+
+      {currentReciterName && (
+        <Text style={styles.currentReciter}>
+          Current: {currentReciterName}
+        </Text>
+      )}
 
       <ScrollView style={styles.buttonContainer}>
         {RECITERS.map((reciter) => (
@@ -45,53 +55,60 @@ export const HomeScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#1a1a1a',
     padding: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
+    textAlign: 'center',
+    marginTop: 40,
     marginBottom: 10,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#aaa',
-    marginBottom: 40,
-  },
-  buttonContainer: {
-    width: '100%',
+    fontSize: 18,
+    color: '#ccc',
+    textAlign: 'center',
     marginBottom: 20,
   },
+  currentReciter: {
+    fontSize: 14,
+    color: '#4CAF50',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    flex: 1,
+  },
   button: {
-    width: '100%',
-    padding: 15,
-    backgroundColor: '#333',
+    backgroundColor: '#2a2a2a',
+    padding: 20,
+    marginVertical: 8,
     borderRadius: 10,
-    marginBottom: 15,
-    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#3a3a3a',
   },
   buttonSelected: {
-    backgroundColor: '#007AFF',
+    borderColor: '#4CAF50',
+    backgroundColor: '#2d4a2d',
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
+    textAlign: 'center',
     fontWeight: '600',
   },
   debugButton: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
     backgroundColor: '#333',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#666',
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 10,
+    marginBottom: 20,
   },
   debugButtonText: {
-    color: '#aaa',
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
