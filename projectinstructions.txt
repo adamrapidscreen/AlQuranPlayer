@@ -1,0 +1,119 @@
+# Al-Quran Player - Complete Project Documentation
+
+## What This App Does
+- Display all 114 surahs of the Quran
+- Play audio recitations (4 reciters)
+- Show Arabic text + English translation
+- Sync audio with verse text
+- Cache audio locally
+- Show all errors on Debug Screen
+
+## The 4 Reciters
+1. Mishary Rashid Al-Afasy
+2. Abu Bakr Al-Shatri
+3. Nasser Al-Qatami
+4. Yasser Al-Dosari
+
+## API: QuranAPI.pages.dev
+
+**Endpoints:**
+- Single verse: https://quranapi.pages.dev/api/{surah}/{ayah}.json
+- Full surah: https://quranapi.pages.dev/api/{surah}.json
+
+Example: https://quranapi.pages.dev/api/1/1.json
+
+## Folder Structure
+
+src/
+├── screens/
+│   ├── HomeScreen.tsx
+│   ├── SurahListScreen.tsx
+│   ├── PlayerScreen.tsx
+│   └── DebugScreen.tsx
+├── services/
+│   ├── errorLogger.ts
+│   ├── quranApi.ts
+│   ├── audioCache.ts
+│   └── audioPlayer.ts
+├── components/
+├── store/
+│   └── quranStore.ts
+├── types/
+│   └── index.ts
+└── utils/
+    └── constants.ts
+
+## How the App Works
+
+1. HomeScreen: User selects reciter (4 options)
+2. SurahListScreen: Show all 114 surahs
+3. User taps surah → PlayerScreen
+4. PlayerScreen: Fetch text + audio from QuranAPI
+5. User presses Play
+6. App checks: Audio cached?
+   - NO: Download, show progress
+   - YES: Play immediately
+7. Audio plays, verses update on screen
+8. User can tap verse to jump
+9. User can use Next/Previous
+
+## Caching
+
+First time: Download → Cache → Play
+Second time: Play from cache (instant)
+
+## Verse Syncing
+
+Formula: (current_position / total_duration) * total_verses
+Result: ±2 seconds variance
+Acceptable for listening
+
+## Error Logging
+
+Automatic capture of:
+- App startup
+- User actions
+- API calls
+- Audio downloads
+- Errors
+
+Access: Debug Screen (tap 🐛 from Home)
+
+## Phases
+
+**Phase 1:** Navigation + 4 reciter buttons (30 min)
+**Phase 2:** Reciter selection persists (30 min)
+**Phase 3:** Fetch + display text (1 hour)
+**Phase 4:** Audio + caching (1.5 hours)
+**Phase 5:** Verse sync (1 hour)
+
+## Testing Checklist
+
+**Phase 1:**
+- App loads
+- Can tap 4 reciter buttons
+- Can navigate to SurahList
+- Can tap surah and go to Player
+- Debug console shows logs
+
+## Git
+
+Initial:
+git init
+git add .
+git commit -m "Initial setup"
+git remote add origin https://github.com/YOUR_USERNAME/AlQuranPlayer.git
+git push -u origin main
+
+After each phase:
+git add .
+git commit -m "Phase X complete"
+git push origin main
+
+## Important
+
+- Internet only needed first play per surah
+- Audio cached locally
+- 4 reciters available
+- Verse sync is approximate (±2 sec)
+- All errors visible on Debug Screen

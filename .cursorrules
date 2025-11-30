@@ -1,0 +1,102 @@
+# Al-Quran Player - Development Rules
+
+## Project Goal
+Build a Quran app with audio playback, text display, and verse syncing.
+
+## Technology Stack (FINAL)
+- React Native + Expo
+- TypeScript (strict mode)
+- Zustand (state management)
+- expo-audio (audio playback)
+- expo-file-system (local storage)
+- AsyncStorage (cached metadata)
+- axios (HTTP requests)
+- React Navigation (screen navigation)
+
+## CRITICAL: API Source - QuranAPI.pages.dev
+
+### Why This API?
+- Single source for text + audio + translations
+- NO authentication required
+- NO rate limiting
+- FREE forever
+- Open source (GitHub Pages hosted)
+- 4 reciters available
+
+### Available Reciters
+1. Mishary Rashid Al-Afasy
+2. Abu Bakr Al-Shatri
+3. Nasser Al-Qatami
+4. Yasser Al-Dosari
+
+### API Endpoints
+
+**Single verse:**
+GET https://quranapi.pages.dev/api/{surah}/{ayah}.json
+
+**Full surah:**
+GET https://quranapi.pages.dev/api/{surah}.json
+
+## Audio Strategy
+
+### Caching
+- First play: Download MP3 → Save locally
+- Second play: Play from cache (instant)
+- Show progress to user during download
+
+### Verse Syncing
+- Approximate timing (duration ÷ verses)
+- Result: ±2 seconds variance
+- Acceptable for Quran listening
+
+## Code Structure
+
+### Services
+- src/services/errorLogger.ts
+- src/services/quranApi.ts
+- src/services/audioCache.ts
+- src/services/audioPlayer.ts
+
+### Store
+- src/store/quranStore.ts
+
+### Screens
+- src/screens/HomeScreen.tsx
+- src/screens/SurahListScreen.tsx
+- src/screens/PlayerScreen.tsx
+- src/screens/DebugScreen.tsx
+
+### Types
+- src/types/index.ts
+
+### Utils
+- src/utils/constants.ts
+
+## Phases
+
+Phase 1: Navigation (30 min)
+Phase 2: Reciter Selection (30 min)
+Phase 3: Text Display (1 hour)
+Phase 4: Audio + Caching (1.5 hours)
+Phase 5: Verse Sync (1 hour)
+
+## Before Each Phase
+- Test API endpoints in browser FIRST
+- Never assume APIs work
+- Only then write code
+
+## Error Logging
+All console.log/warn/error captured automatically
+View in Debug Screen
+Filter by level, export logs
+
+## Testing
+- Always test on real device
+- Use Debug Screen for errors
+- Test after each phase
+
+## Code Quality
+- TypeScript strict mode
+- All components typed
+- Service layer for APIs
+- Proper error handling
