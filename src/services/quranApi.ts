@@ -19,8 +19,6 @@ export const quranApi = {
         `${API_BASE}/surah/${surahNumber}/en.asad`
       );
 
-      console.log(`Successfully fetched Surah ${surahNumber}`);
-      
       return {
         arabic: arabicResponse.data.data.ayahs,
         english: englishResponse.data.data.ayahs,
@@ -32,9 +30,7 @@ export const quranApi = {
   },
 
   // Format ayahs with translation
-  formatAyahs(data: any): AyahWithTranslation[] {
-    console.log('formatAyahs called');
-    
+  formatAyahs(data: { arabic: any[]; english: any[] }): AyahWithTranslation[] {
     if (!data.arabic || !data.english) {
       console.warn('Missing arabic or english data');
       return [];
@@ -47,24 +43,63 @@ export const quranApi = {
       englishText: data.english[index]?.text || '',
     }));
 
-    console.log(`Formatted ${formatted.length} ayahs`);
     return formatted;
   },
 
-  // Get reciter audio URL
-  getReciterAudioUrl(
-    surahNumber: number,
-    ayahNumber: number,
-    reciterId: string
-  ): string {
+  /**
+   * Get reciter audio URL - uses quranapi.pages.dev for full chapter audio
+   * Based on: https://quranapi.pages.dev/getting-started/audio-recitation
+   * 
+   * @param surahNumber - The surah number (1-114)
+   * @param reciterId - The reciter identifier (mishary, shatri, qatami, dosari)
+   * @returns Promise<string> Direct MP3 URL string
+   */
+  async getReciterAudioUrl(surahNumber: number, reciterId: string): Promise<string> {
+    // Map reciter IDs to quranapi.pages.dev reciter numbers
+    // From docs: 1=Mishary, 2=Abu Bakr, 3=Nasser, 4=Yasser
     const reciterMap: { [key: string]: string } = {
-      mishary: 'ar.alafasy',
-      shatri: 'ar.shatri',
-      qatami: 'ar.qahtani',
-      dosari: 'ar.dosari',
+      mishary: '1',  // Mishary Rashid Al Afasy
+      shatri: '2',   // Abu Bakr Al Shatri
+      qatami: '3',   // Nasser Al Qatami
+      dosari: '4',   // Yasser Al Dosari
     };
 
-    const reciter = reciterMap[reciterId] || 'ar.alafasy';
-    return `${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${reciter}`;
+    const reciterNumber = reciterMap[reciterId] || '1';
+    
+    try {
+      // Get full chapter audio from quranapi.pages.dev
+      // Endpoint: /api/audio/{surahNo}.json
+      const apiUrl = `https://quranapi.pages.dev/api/audio/${surahNumber}.json`;
+      const response = await axios.get(apiUrl, { timeout: 10000 });
+      
+      // Response format: { "1": { "reciter": "...", "url": "...", "originalUrl": "..." }, ... }
+      const reciterData = response.data?.[reciterNumber];
+      
+      if (!reciterData) {
+        throw new Error(`Reciter ${reciterId} (number ${reciterNumber}) not found in API response`);
+      }
+      
+      // Prefer originalUrl (from mp3quran.net servers) as it's more reliable
+      // Fallback to url (GitHub) if originalUrl is not available
+      const audioUrl = reciterData.originalUrl || reciterData.url;
+      
+      if (!audioUrl || !audioUrl.startsWith('http')) {
+        throw new Error('Invalid audio URL in API response');
+      }
+      
+      return audioUrl;
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to get audio URL from quranapi.pages.dev:', errorMessage);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: unknown } };
+        if (axiosError.response) {
+          console.error('API Response status:', axiosError.response.status);
+          console.error('API Response data:', JSON.stringify(axiosError.response.data, null, 2));
+        }
+      }
+      throw new Error(`Could not get audio URL: ${errorMessage}`);
+    }
   },
 };

@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { audioCache } from '../services/audioCache';
 import { errorLogger } from '../services/errorLogger';
 
 export const DebugScreen = () => {
@@ -59,6 +60,17 @@ export const DebugScreen = () => {
     );
   };
 
+  const handleClearCache = async () => {
+    try {
+      await audioCache.clearAllCache();
+      alert('Audio cache cleared successfully! All surahs will re-download on next play.');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Error clearing cache: ${errorMessage}`);
+      console.error('Error clearing cache:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Debug Console</Text>
@@ -108,7 +120,14 @@ export const DebugScreen = () => {
           style={[styles.actionBtn, styles.clearBtn]}
           onPress={handleClearLogs}
         >
-          <Text style={styles.actionBtnText}>🗑 Clear</Text>
+          <Text style={styles.actionBtnText}>🗑 Clear Logs</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.clearCacheBtn]}
+          onPress={handleClearCache}
+        >
+          <Text style={styles.actionBtnText}>🗑️ Clear Audio Cache</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -189,5 +208,8 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     backgroundColor: '#ff0000',
+  },
+  clearCacheBtn: {
+    backgroundColor: '#ff6600',
   },
 });

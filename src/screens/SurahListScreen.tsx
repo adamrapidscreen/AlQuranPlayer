@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -131,7 +130,6 @@ const ALL_SURAHS: Surah[] = [
 
 export const SurahListScreen = ({ navigation }: any) => {
   const [surahs] = useState<Surah[]>(ALL_SURAHS);
-  const [loading] = useState(false);
   const { selectedReciter } = useQuranStore();
 
   const handleSelectSurah = (surah: Surah) => {
@@ -154,14 +152,6 @@ export const SurahListScreen = ({ navigation }: any) => {
       <Text style={styles.ayahCount}>{item.numberOfAyahs}</Text>
     </TouchableOpacity>
   );
-
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
