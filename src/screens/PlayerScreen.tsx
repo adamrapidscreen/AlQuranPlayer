@@ -29,7 +29,8 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     loadSurah();
     return () => {
-      audioPlayer.unload();
+      // Don't stop audio here - let it keep playing
+      // Only unload when truly leaving the player permanently
     };
   }, [surahNumber]);
 
@@ -94,6 +95,13 @@ export const PlayerScreen = ({ route, navigation }: any) => {
 
   const loadAndPlayAudio = async () => {
     try {
+      // Only stop if switching to DIFFERENT surah
+      if (audioLoaded) {
+        console.log('Stopping previous audio...');
+        await audioPlayer.stop();
+        setAudioLoaded(false);
+      }
+      
       setIsDownloading(true);
       setDownloadProgress(0);
 
