@@ -6,6 +6,7 @@ import { DebugScreen } from '../src/screens/DebugScreen';
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { PlayerScreen } from '../src/screens/PlayerScreen';
 import { SurahListScreen } from '../src/screens/SurahListScreen';
+import { TextViewerScreen } from '../src/screens/TextViewerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +39,13 @@ export default function RootLayout() {
         name="Player"
         component={PlayerScreen}
         options={{ title: 'Player' }}
+      />
+      <Stack.Screen
+        name="TextViewer"
+        component={TextViewerScreen}
+        options={{
+          headerShown: false,
+        }}
       />
       <Stack.Screen
         name="Debug"
