@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,7 +13,7 @@ import { useQuranStore } from '../store/quranStore';
 import { AyahWithTranslation } from '../types/index';
 import { getReciterName } from '../utils/constants';
 
-export const PlayerScreen = ({ route }: any) => {
+export const PlayerScreen = ({ route, navigation }: any) => {
   const { surahNumber } = route.params;
   const { selectedReciter, setCurrentAyahs, setError } = useQuranStore();
   const [ayahs, setAyahs] = useState<AyahWithTranslation[]>([]);
@@ -24,44 +23,45 @@ export const PlayerScreen = ({ route }: any) => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
+  const [duration, setDuration] = useState('0:00');
+  const [currentTime, setCurrentTime] = useState('0:00');
 
   useEffect(() => {
     loadSurah();
     return () => {
-      // Clean up audio when component unmounts or surah changes
-      // Handle cleanup gracefully - don't throw errors
-      const cleanup = async () => {
-        try {
-          // Stop and unload audio if it exists
-          if (audioPlayer.getIsPlaying()) {
-            await audioPlayer.stop().catch(() => {
-              // Ignore errors during cleanup
-            });
-            await audioPlayer.unload().catch(() => {
-              // Ignore errors during cleanup
-            });
-          }
-        } catch (error) {
-          // Silently handle any cleanup errors
-        } finally {
-          setAudioLoaded(false);
-          setIsPlaying(false);
-        }
-      };
-      cleanup();
+      audioPlayer.unload();
     };
   }, [surahNumber]);
+
+  // Update time display
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (isPlaying) {
+        const status = await audioPlayer.getStatus();
+        if (status?.isLoaded) {
+          const curr = Math.floor(status.currentTime);
+          const dur = Math.floor(status.duration);
+          setCurrentTime(formatTime(curr));
+          setDuration(formatTime(dur));
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   const loadSurah = async () => {
     try {
       setLoading(true);
       setErrorLocal(null);
+      console.log(`Loading Surah ${surahNumber}...`);
 
       const data = await quranApi.getSurah(surahNumber);
       const formattedAyahs = quranApi.formatAyahs(data);
 
       setAyahs(formattedAyahs);
       setCurrentAyahs(formattedAyahs);
+      console.log(`Loaded ${formattedAyahs.length} ayahs`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error loading surah:', errorMsg);
@@ -75,10 +75,8 @@ export const PlayerScreen = ({ route }: any) => {
   const handlePlayPause = async () => {
     try {
       if (!audioLoaded) {
-        // First time - need to download/load audio
         await loadAndPlayAudio();
       } else {
-        // Already loaded - just toggle play/pause
         if (isPlaying) {
           await audioPlayer.pause();
           setIsPlaying(false);
@@ -96,85 +94,58 @@ export const PlayerScreen = ({ route }: any) => {
 
   const loadAndPlayAudio = async () => {
     try {
-      // Stop any currently playing audio FIRST to prevent overlapping
-      if (audioLoaded || isPlaying) {
-        try {
-          await audioPlayer.stop();
-          await audioPlayer.unload();
-        } catch (error) {
-          console.warn('Error stopping previous audio:', error);
-        }
-        setAudioLoaded(false);
-        setIsPlaying(false);
-      }
-
       setIsDownloading(true);
       setDownloadProgress(0);
 
-      // Check if already cached
+      console.log(`=== LOADING AUDIO FOR SURAH ${surahNumber} ===`);
+      console.log(`Reciter: ${selectedReciter}`);
+
+      const audioUrl = await quranApi.getReciterAudioUrl(surahNumber, selectedReciter);
+      console.log(`Generated URL: ${audioUrl}`);
+
       const cached = await audioCache.audioExists(surahNumber, selectedReciter);
       let audioUri: string;
 
       if (cached) {
+        console.log('✅ Audio found in cache');
         audioUri = await audioCache.getAudioFilePath(surahNumber, selectedReciter);
       } else {
-        // Get audio URL (now async, fetches from API to get actual URL)
-        const audioUrl = await quranApi.getReciterAudioUrl(
+        console.log('📥 Downloading audio...');
+        audioUri = await audioCache.downloadAudio(
           surahNumber,
-          selectedReciter
+          selectedReciter,
+          audioUrl,
+          (progress) => {
+            setDownloadProgress(progress);
+            console.log(`Download progress: ${progress}%`);
+          }
         );
-        
-        // Validate URL format
-        if (!audioUrl || (!audioUrl.startsWith('http://') && !audioUrl.startsWith('https://'))) {
-          throw new Error(`Invalid audio URL format: ${audioUrl}`);
-        }
-        
-        try {
-          // Download and cache
-          audioUri = await audioCache.downloadAudio(
-            surahNumber,
-            selectedReciter,
-            audioUrl,
-            (progress) => {
-              setDownloadProgress(progress);
-            }
-          );
-        } catch (downloadError: unknown) {
-          console.error('Download failed:', downloadError);
-          const errorMessage = downloadError instanceof Error ? downloadError.message : 'Unknown error';
-          throw new Error(`Failed to download audio: ${errorMessage}`);
-        }
       }
 
-      // Validate audio URI before loading
-      if (!audioUri) {
-        throw new Error('Audio URI is empty');
-      }
-      
-      try {
-        await audioPlayer.loadAudio(audioUri);
-        setAudioLoaded(true);
+      await audioPlayer.loadAudio(audioUri);
+      setAudioLoaded(true);
 
-        // Small delay to ensure player is ready
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Play
-        await audioPlayer.play();
-        setIsPlaying(true);
-        setIsDownloading(false);
-        setDownloadProgress(0);
-      } catch (loadError: unknown) {
-        console.error('Error in load/play:', loadError);
-        const errorMessage = loadError instanceof Error ? loadError.message : 'Unknown error';
-        throw new Error(`Failed to load/play audio: ${errorMessage}`);
+      const status = await audioPlayer.getStatus();
+      if (status?.duration) {
+        setDuration(formatTime(Math.floor(status.duration)));
       }
+
+      await audioPlayer.play();
+      setIsPlaying(true);
+      setIsDownloading(false);
+      setDownloadProgress(0);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Error loading/playing audio:', errorMsg);
-      console.error('Full error:', err);
+      console.error('❌ Error:', errorMsg);
       setErrorLocal(errorMsg);
       setIsDownloading(false);
     }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   const reciterName = getReciterName(selectedReciter);
@@ -182,11 +153,7 @@ export const PlayerScreen = ({ route }: any) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator
-          size="large"
-          color="#007AFF"
-          style={{ marginTop: 50 }}
-        />
+        <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading Surah {surahNumber}...</Text>
       </View>
     );
@@ -205,51 +172,70 @@ export const PlayerScreen = ({ route }: any) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.surahTitle}>Surah {surahNumber}</Text>
-      <Text style={styles.reciter}>Reciter: {reciterName}</Text>
-      <Text style={styles.ayahCount}>{ayahs.length} Ayahs</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.surahNumber}>Surah {surahNumber}</Text>
+        <Text style={styles.reciterName}>{reciterName}</Text>
+      </View>
 
-      <ScrollView style={styles.textArea} scrollEnabled={true}>
-        {ayahs.map((ayah, index) => (
-          <View key={index} style={styles.ayahContainer}>
-            <Text style={styles.arabicText}>{ayah.text}</Text>
-            <Text style={styles.verseNumber}>({ayah.numberInSurah})</Text>
-            <Text style={styles.englishText}>{ayah.englishText}</Text>
-          </View>
-        ))}
-      </ScrollView>
+      {/* Logo/Branding Area */}
+      <View style={styles.centerContent}>
+        <View style={styles.logoPlaceholder}>
+          <Text style={styles.logoText}>🕌</Text>
+        </View>
+        <Text style={styles.ayahCountText}>{ayahs.length} [translate:Ayahs]</Text>
+      </View>
 
+      {/* Download Progress */}
       {isDownloading && (
         <View style={styles.downloadContainer}>
-          <Text style={styles.downloadText}>
-            Downloading audio... {downloadProgress}%
-          </Text>
+          <Text style={styles.downloadText}>Downloading... {downloadProgress}%</Text>
           <View style={styles.progressBar}>
             <View
-              style={[
-                styles.progressFill,
-                { width: `${downloadProgress}%` },
-              ]}
+              style={[styles.progressFill, { width: `${downloadProgress}%` }]}
             />
           </View>
         </View>
       )}
 
+      {/* Time Display */}
+      <View style={styles.timeContainer}>
+        <Text style={styles.timeText}>{currentTime}</Text>
+        <Text style={styles.timeText}>{duration}</Text>
+      </View>
+
+      {/* Play Button */}
       <View style={styles.controls}>
         <TouchableOpacity
-          style={[styles.playButton, isDownloading && styles.playButtonDisabled]}
+          style={[
+            styles.playButton,
+            isDownloading && styles.playButtonDisabled,
+          ]}
           onPress={handlePlayPause}
           disabled={isDownloading}
         >
           {isDownloading ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color="#fff" size="large" />
           ) : (
-            <Text style={styles.playButtonText}>
-              {isPlaying ? '⏸ Pause' : '▶ Play'}
+            <Text style={styles.playButtonIcon}>
+              {isPlaying ? '⏸' : '▶'}
             </Text>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Text View Button */}
+      <TouchableOpacity
+        style={styles.textViewButton}
+        onPress={() =>
+          navigation.navigate('TextViewer', {
+            surahNumber,
+            ayahs,
+          })
+        }
+      >
+        <Text style={styles.textViewButtonText}>View Text</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -258,24 +244,78 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-    padding: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
-  surahTitle: {
-    fontSize: 24,
+  header: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  surahNumber: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 5,
+    marginBottom: 8,
   },
-  reciter: {
-    fontSize: 14,
+  reciterName: {
+    fontSize: 16,
     color: '#007AFF',
     fontWeight: '600',
-    marginBottom: 5,
   },
-  ayahCount: {
-    fontSize: 12,
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoPlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  logoText: {
+    fontSize: 80,
+  },
+  ayahCountText: {
+    fontSize: 14,
     color: '#888',
-    marginBottom: 15,
+    marginTop: 20,
+  },
+  downloadContainer: {
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  downloadText: {
+    color: '#007AFF',
+    fontSize: 12,
+    marginBottom: 8,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#333',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  timeText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '500',
   },
   loadingText: {
     color: '#aaa',
@@ -301,71 +341,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  textArea: {
-    flex: 1,
-    backgroundColor: '#222',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  ayahContainer: {
-    marginBottom: 20,
-  },
-  arabicText: {
-    fontSize: 18,
-    color: '#fff',
-    lineHeight: 32,
-    marginBottom: 5,
-    textAlign: 'right',
-  },
-  verseNumber: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 8,
-  },
-  englishText: {
-    fontSize: 13,
-    color: '#bbb',
-    lineHeight: 20,
-  },
-  downloadContainer: {
-    marginBottom: 15,
-    paddingHorizontal: 20,
-  },
-  downloadText: {
-    color: '#007AFF',
-    fontSize: 12,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#333',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-  },
   controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingBottom: 20,
+    alignItems: 'center',
+    marginBottom: 30,
   },
   playButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#007AFF',
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   playButtonDisabled: {
     backgroundColor: '#0056cc',
     opacity: 0.6,
   },
-  playButtonText: {
+  playButtonIcon: {
+    fontSize: 50,
     color: '#fff',
-    fontSize: 18,
+  },
+  textViewButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  textViewButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
