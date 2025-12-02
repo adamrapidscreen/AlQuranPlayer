@@ -44,11 +44,13 @@ export interface Surah {
     currentAyahs: AyahWithTranslation[];
     isLoading: boolean;
     error: string | null;
+    sleepTimerEndTime: number | null; // Timestamp when sleep timer will trigger
   
     setSelectedReciter: (reciter: Reciter) => void;
     setSelectedSurah: (surah: number) => void;
     setCurrentAyahs: (ayahs: AyahWithTranslation[]) => void;
     setIsLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
+    setSleepTimerEndTime: (endTime: number | null) => void;
   }
   

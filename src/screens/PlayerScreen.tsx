@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,7 +16,7 @@ import { getReciterName } from '../utils/constants';
 
 export const PlayerScreen = ({ route, navigation }: any) => {
   const { surahNumber } = route.params;
-  const { selectedReciter, setCurrentAyahs, setError } = useQuranStore();
+  const { selectedReciter, setCurrentAyahs, setError, sleepTimerEndTime, setSleepTimerEndTime } = useQuranStore();
   const [ayahs, setAyahs] = useState<AyahWithTranslation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setErrorLocal] = useState<string | null>(null);
@@ -25,6 +26,8 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [duration, setDuration] = useState('0:00');
   const [currentTime, setCurrentTime] = useState('0:00');
+  const [showSleepModal, setShowSleepModal] = useState(false);
+  const [sleepCountdown, setSleepCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     loadSurah();
@@ -50,6 +53,37 @@ export const PlayerScreen = ({ route, navigation }: any) => {
 
     return () => clearInterval(interval);
   }, [isPlaying]);
+
+  // Sleep timer countdown - persists across surah/reciter changes
+  useEffect(() => {
+    if (!sleepTimerEndTime) {
+      setSleepCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((sleepTimerEndTime - now) / 1000));
+      
+      if (remaining <= 0) {
+        // Timer expired
+        audioPlayer.stop();
+        setIsPlaying(false);
+        setSleepTimerEndTime(null);
+        setSleepCountdown(null);
+      } else {
+        setSleepCountdown(remaining);
+      }
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Then update every second
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [sleepTimerEndTime, setSleepTimerEndTime]);
 
   const loadSurah = async () => {
     try {
@@ -91,6 +125,19 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       console.error('Error playing audio:', errorMsg);
       setErrorLocal(errorMsg);
     }
+  };
+
+  const handleSleepTimer = (minutes: number) => {
+    const endTime = Date.now() + (minutes * 60 * 1000);
+    setSleepTimerEndTime(endTime);
+    setShowSleepModal(false);
+    audioPlayer.setSleepTimer(minutes);
+  };
+
+  const cancelSleepTimer = () => {
+    setSleepTimerEndTime(null);
+    setSleepCountdown(null);
+    audioPlayer.cancelSleepTimer();
   };
 
   const loadAndPlayAudio = async () => {
@@ -156,6 +203,13 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  const formatSleepCountdown = (totalSeconds: number | null): string => {
+    if (!totalSeconds) return '';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
   const reciterName = getReciterName(selectedReciter);
 
   if (loading) {
@@ -206,6 +260,18 @@ export const PlayerScreen = ({ route, navigation }: any) => {
         </View>
       )}
 
+      {/* Sleep Timer Display */}
+      {sleepTimerEndTime && (
+        <View style={styles.sleepTimerDisplay}>
+          <Text style={styles.sleepTimerText}>
+            Sleep Timer: {formatSleepCountdown(sleepCountdown)}
+          </Text>
+          <TouchableOpacity onPress={cancelSleepTimer}>
+            <Text style={styles.cancelSleepText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Time Display */}
       <View style={styles.timeContainer}>
         <Text style={styles.timeText}>{currentTime}</Text>
@@ -232,6 +298,14 @@ export const PlayerScreen = ({ route, navigation }: any) => {
         </TouchableOpacity>
       </View>
 
+      {/* Sleep Timer Button */}
+      <TouchableOpacity
+        style={styles.sleepButton}
+        onPress={() => setShowSleepModal(true)}
+      >
+        <Text style={styles.sleepButtonText}>⏱ Sleep Timer</Text>
+      </TouchableOpacity>
+
       {/* Text View Button */}
       <TouchableOpacity
         style={styles.textViewButton}
@@ -244,6 +318,39 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       >
         <Text style={styles.textViewButtonText}>View Text</Text>
       </TouchableOpacity>
+
+      {/* Sleep Timer Modal */}
+      <Modal
+        visible={showSleepModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSleepModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Set Sleep Timer</Text>
+
+            <View style={styles.timerOptionsContainer}>
+              {[5, 10, 15, 30].map((minutes) => (
+                <TouchableOpacity
+                  key={minutes}
+                  style={styles.timerOption}
+                  onPress={() => handleSleepTimer(minutes)}
+                >
+                  <Text style={styles.timerOptionText}>{minutes} min</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowSleepModal(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -314,6 +421,26 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#007AFF',
   },
+  sleepTimerDisplay: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sleepTimerText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  cancelSleepText: {
+    color: '#ff4444',
+    fontWeight: '600',
+    fontSize: 12,
+  },
   timeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -374,6 +501,21 @@ const styles = StyleSheet.create({
     fontSize: 50,
     color: '#fff',
   },
+  sleepButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sleepButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   textViewButton: {
     backgroundColor: 'rgba(0, 122, 255, 0.2)',
     borderWidth: 1,
@@ -388,5 +530,55 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#222',
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  timerOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+  },
+  timerOption: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginVertical: 8,
+    width: '45%',
+  },
+  timerOptionText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    backgroundColor: '#333',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

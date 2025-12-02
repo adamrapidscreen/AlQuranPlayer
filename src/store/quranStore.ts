@@ -26,6 +26,7 @@ export const useQuranStore = create<QuranStoreState>((set) => {
     currentAyahs: [],
     isLoading: false,
     error: null,
+    sleepTimerEndTime: null,
 
     setSelectedReciter: (reciter: Reciter) => {
       set({ selectedReciter: reciter });
@@ -40,5 +41,6 @@ export const useQuranStore = create<QuranStoreState>((set) => {
       set({ currentAyahs: ayahs }),
     setIsLoading: (loading: boolean) => set({ isLoading: loading }),
     setError: (error: string | null) => set({ error }),
+    setSleepTimerEndTime: (endTime: number | null) => set({ sleepTimerEndTime: endTime }),
   };
 });

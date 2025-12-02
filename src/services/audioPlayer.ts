@@ -2,6 +2,7 @@ import { createAudioPlayer, AudioPlayer as ExpoAudioPlayer, setAudioModeAsync } 
 
 let player: ExpoAudioPlayer | null = null;
 let isPlaying = false;
+let sleepTimerId: NodeJS.Timeout | null = null;
 
 // Initialize audio mode once
 let audioModeInitialized = false;
@@ -190,6 +191,58 @@ export const audioPlayer = {
       duration: player.duration,
       isLoaded: player.isLoaded,
     };
+  },
+
+  async setSleepTimer(minutes: number): Promise<void> {
+    try {
+      if (minutes <= 0) {
+        throw new Error('Sleep timer must be greater than 0');
+      }
+      
+      console.log(`Sleep timer set for ${minutes} minutes`);
+      
+      // Cancel any existing sleep timer
+      if (sleepTimerId) {
+        clearTimeout(sleepTimerId);
+        sleepTimerId = null;
+      }
+      
+      // Stop audio after specified minutes
+      const stopFn = async () => {
+        try {
+          if (player) {
+            if (player.playing) {
+              player.pause();
+              try {
+                await player.seekTo(0);
+              } catch (seekError) {
+                // Ignore seek errors
+              }
+            }
+            isPlaying = false;
+          }
+        } catch (error) {
+          console.warn('Error stopping audio from sleep timer:', error);
+        }
+      };
+      
+      sleepTimerId = setTimeout(async () => {
+        console.log('Sleep timer triggered - stopping audio');
+        await stopFn();
+        sleepTimerId = null;
+      }, minutes * 60 * 1000);
+    } catch (error) {
+      console.error('Error setting sleep timer:', error);
+      throw error;
+    }
+  },
+
+  async cancelSleepTimer(): Promise<void> {
+    console.log('Sleep timer cancelled');
+    if (sleepTimerId) {
+      clearTimeout(sleepTimerId);
+      sleepTimerId = null;
+    }
   },
 
   getIsPlaying(): boolean {
