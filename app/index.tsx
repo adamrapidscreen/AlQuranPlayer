@@ -1,4 +1,12 @@
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { KiswahTheme } from '../src/constants/theme';
+
+// Keep splash screen visible while fonts load
+SplashScreen.preventAutoHideAsync();
 
 // Initialize error logger
 
@@ -13,6 +21,43 @@ const Stack = createNativeStackNavigator();
 console.log('App started');
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'Amiri-Regular': require('../assets/fonts/Amiri-Regular.ttf'),
+    'Amiri-Bold': require('../assets/fonts/Amiri-Bold.ttf'),
+    'Lato-Regular': require('../assets/fonts/Lato-Regular.ttf'),
+  });
+
+  // Debug: Log font loading state
+  console.log('Font loading state:', { fontsLoaded, fontError });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      console.log('✅ Fonts loaded successfully:', {
+        'Amiri-Regular': true,
+        'Amiri-Bold': true,
+        'Lato-Regular': true,
+      });
+      SplashScreen.hideAsync();
+    }
+    if (fontError) {
+      console.error('❌ Font loading error:', fontError);
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Show loading view while fonts are loading
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={KiswahTheme.Primary} />
+      </View>
+    );
+  }
+
+  if (fontError) {
+    console.error('Font loading failed:', fontError);
+  }
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -55,3 +100,12 @@ export default function RootLayout() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: KiswahTheme.Background,
+  },
+});

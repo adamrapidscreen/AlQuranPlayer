@@ -1,9 +1,9 @@
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { AyahWithTranslation } from '../types/index';
 
@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'right',
     fontWeight: '600',
+    fontFamily: 'Amiri-Regular',
   },
   verseNumber: {
     fontSize: 12,
@@ -88,6 +89,7 @@ const styles = StyleSheet.create({
     color: '#bbb',
     lineHeight: 22,
     marginBottom: 12,
+    fontFamily: 'Lato-Regular',
   },
   divider: {
     height: 1,
