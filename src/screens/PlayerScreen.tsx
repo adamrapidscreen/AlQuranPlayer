@@ -1,18 +1,24 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { GlassPlayer } from '../components/GlassPlayer';
+import { SurahHeaderArt } from '../components/SurahHeaderArt';
+import { VerseItem } from '../components/VerseItem';
+import { KiswahTheme } from '../constants/theme';
 import { audioCache } from '../services/audioCache';
 import { audioPlayer } from '../services/audioPlayer';
 import { quranApi } from '../services/quranApi';
 import { useQuranStore } from '../store/quranStore';
 import { AyahWithTranslation } from '../types/index';
-import { getReciterName } from '../utils/constants';
+import { getReciterName, getSurahName } from '../utils/constants';
 
 export const PlayerScreen = ({ route, navigation }: any) => {
   const { surahNumber } = route.params;
@@ -24,8 +30,6 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
-  const [duration, setDuration] = useState('0:00');
-  const [currentTime, setCurrentTime] = useState('0:00');
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [sleepCountdown, setSleepCountdown] = useState<number | null>(null);
 
@@ -37,22 +41,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     };
   }, [surahNumber]);
 
-  // Update time display
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (isPlaying) {
-        const status = await audioPlayer.getStatus();
-        if (status?.isLoaded) {
-          const curr = Math.floor(status.currentTime);
-          const dur = Math.floor(status.duration);
-          setCurrentTime(formatTime(curr));
-          setDuration(formatTime(dur));
-        }
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+  // Time display can be added to GlassPlayer in the future if needed
 
   // Sleep timer countdown - persists across surah/reciter changes
   useEffect(() => {
@@ -107,24 +96,40 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const handlePlayPause = async () => {
+  const handlePlay = async () => {
     try {
       if (!audioLoaded) {
         await loadAndPlayAudio();
       } else {
-        if (isPlaying) {
-          await audioPlayer.pause();
-          setIsPlaying(false);
-        } else {
-          await audioPlayer.play();
-          setIsPlaying(true);
-        }
+        await audioPlayer.play();
+        setIsPlaying(true);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error playing audio:', errorMsg);
       setErrorLocal(errorMsg);
     }
+  };
+
+  const handlePause = async () => {
+    try {
+      await audioPlayer.pause();
+      setIsPlaying(false);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Error pausing audio:', errorMsg);
+      setErrorLocal(errorMsg);
+    }
+  };
+
+  const handleNext = () => {
+    // TODO: Implement next surah logic
+    console.log('Next surah');
+  };
+
+  const handlePrev = () => {
+    // TODO: Implement previous surah logic
+    console.log('Previous surah');
   };
 
   const handleSleepTimer = (minutes: number) => {
@@ -180,11 +185,6 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       await audioPlayer.loadAudio(audioUri);
       setAudioLoaded(true);
 
-      const status = await audioPlayer.getStatus();
-      if (status?.duration) {
-        setDuration(formatTime(Math.floor(status.duration)));
-      }
-
       await audioPlayer.play();
       setIsPlaying(true);
       setIsDownloading(false);
@@ -197,12 +197,6 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
   const formatSleepCountdown = (totalSeconds: number | null): string => {
     if (!totalSeconds) return '';
     const mins = Math.floor(totalSeconds / 60);
@@ -211,42 +205,59 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   };
 
   const reciterName = getReciterName(selectedReciter);
+  const surahName = getSurahName(surahNumber);
+
+  const renderVerse = ({ item }: { item: AyahWithTranslation }) => (
+    <VerseItem
+      arabicText={item.text}
+      translation={item.englishText}
+      verseNumber={item.numberInSurah}
+    />
+  );
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading Surah {surahNumber}...</Text>
-      </View>
+      <LinearGradient
+        colors={['#1e3c72', KiswahTheme.Background]}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={KiswahTheme.Primary} />
+          <Text style={styles.loadingText}>Loading Surah {surahNumber}...</Text>
+        </View>
+      </LinearGradient>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Error: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadSurah}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <LinearGradient
+        colors={['#1e3c72', KiswahTheme.Background]}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadSurah}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.surahNumber}>Surah {surahNumber}</Text>
-        <Text style={styles.reciterName}>{reciterName}</Text>
-      </View>
-
-      {/* Logo/Branding Area */}
-      <View style={styles.centerContent}>
-        <View style={styles.logoPlaceholder}>
-          <Text style={styles.logoText}>🕌</Text>
-        </View>
-        <Text style={styles.ayahCountText}>{ayahs.length} [translate:Ayahs]</Text>
-      </View>
+    <LinearGradient
+      colors={['#1e3c72', KiswahTheme.Background]}
+      style={styles.gradientContainer}
+    >
+      <FlatList
+        data={ayahs}
+        renderItem={renderVerse}
+        keyExtractor={(item) => item.number.toString()}
+        ListHeaderComponent={<SurahHeaderArt surahNumber={surahNumber} />}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* Download Progress */}
       {isDownloading && (
@@ -272,31 +283,16 @@ export const PlayerScreen = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* Time Display */}
-      <View style={styles.timeContainer}>
-        <Text style={styles.timeText}>{currentTime}</Text>
-        <Text style={styles.timeText}>{duration}</Text>
-      </View>
-
-      {/* Play Button */}
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={[
-            styles.playButton,
-            isDownloading && styles.playButtonDisabled,
-          ]}
-          onPress={handlePlayPause}
-          disabled={isDownloading}
-        >
-          {isDownloading ? (
-            <ActivityIndicator color="#fff" size="large" />
-          ) : (
-            <Text style={styles.playButtonIcon}>
-              {isPlaying ? '⏸' : '▶'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Glass Player - Floating at bottom */}
+      <GlassPlayer
+        surahName={surahName}
+        reciterName={reciterName}
+        isPlaying={isPlaying}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onNext={handleNext}
+        onPrev={handlePrev}
+      />
 
       {/* Sleep Timer Button */}
       <TouchableOpacity
@@ -351,65 +347,70 @@ export const PlayerScreen = ({ route, navigation }: any) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  gradientContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'space-between',
+  },
+  listContent: {
+    paddingBottom: 150, // Space for GlassPlayer
     paddingHorizontal: 20,
-    paddingVertical: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  surahNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  reciterName: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  centerContent: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoPlaceholder: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  loadingText: {
+    color: KiswahTheme.TextPrimary,
+    fontSize: 14,
+    marginTop: 15,
+    textAlign: 'center',
+    fontFamily: 'Lato-Regular',
+  },
+  errorContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
+    padding: 20,
   },
-  logoText: {
-    fontSize: 80,
-  },
-  ayahCountText: {
+  errorText: {
+    color: '#ff4444',
     fontSize: 14,
-    color: '#888',
+    marginBottom: 20,
+    textAlign: 'center',
+    fontFamily: 'Lato-Regular',
+  },
+  retryButton: {
+    backgroundColor: KiswahTheme.Primary,
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignSelf: 'center',
     marginTop: 20,
+  },
+  retryButtonText: {
+    color: KiswahTheme.Background,
+    fontWeight: '600',
+    fontFamily: 'Lato-Regular',
   },
   downloadContainer: {
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 10,
   },
   downloadText: {
-    color: '#007AFF',
+    color: KiswahTheme.Primary,
     fontSize: 12,
     marginBottom: 8,
     fontWeight: '600',
     textAlign: 'center',
+    fontFamily: 'Lato-Regular',
   },
   progressBar: {
     height: 4,
@@ -419,117 +420,73 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: KiswahTheme.Primary,
   },
   sleepTimerDisplay: {
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(197, 160, 89, 0.15)',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 10,
   },
   sleepTimerText: {
-    color: '#007AFF',
+    color: KiswahTheme.Primary,
     fontWeight: '600',
     fontSize: 14,
+    fontFamily: 'Lato-Regular',
   },
   cancelSleepText: {
     color: '#ff4444',
     fontWeight: '600',
     fontSize: 12,
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  timeText: {
-    color: '#888',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  loadingText: {
-    color: '#aaa',
-    fontSize: 14,
-    marginTop: 15,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: '#ff4444',
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 30,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: 20,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  controls: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  playButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  playButtonDisabled: {
-    backgroundColor: '#0056cc',
-    opacity: 0.6,
-  },
-  playButtonIcon: {
-    fontSize: 50,
-    color: '#fff',
+    fontFamily: 'Lato-Regular',
   },
   sleepButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(197, 160, 89, 0.2)',
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: KiswahTheme.Primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 12,
+    zIndex: 5,
   },
   sleepButtonText: {
-    color: '#007AFF',
+    color: KiswahTheme.Primary,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Lato-Regular',
   },
   textViewButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    position: 'absolute',
+    bottom: 150,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(197, 160, 89, 0.2)',
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: KiswahTheme.Primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 20,
+    zIndex: 5,
   },
   textViewButtonText: {
-    color: '#007AFF',
+    color: KiswahTheme.Primary,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Lato-Regular',
   },
   modalOverlay: {
     flex: 1,
@@ -538,7 +495,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#222',
+    backgroundColor: KiswahTheme.Surface,
     borderRadius: 16,
     padding: 24,
     width: '80%',
@@ -546,9 +503,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: KiswahTheme.TextPrimary,
     marginBottom: 20,
     textAlign: 'center',
+    fontFamily: 'Amiri-Bold',
   },
   timerOptionsContainer: {
     flexDirection: 'row',
@@ -557,7 +515,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   timerOption: {
-    backgroundColor: '#007AFF',
+    backgroundColor: KiswahTheme.Primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -565,10 +523,11 @@ const styles = StyleSheet.create({
     width: '45%',
   },
   timerOptionText: {
-    color: '#fff',
+    color: KiswahTheme.Background,
     fontWeight: '600',
     fontSize: 16,
     textAlign: 'center',
+    fontFamily: 'Lato-Regular',
   },
   modalCloseButton: {
     backgroundColor: '#333',
@@ -576,9 +535,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modalCloseButtonText: {
-    color: '#fff',
+    color: KiswahTheme.TextPrimary,
     fontWeight: '600',
     fontSize: 16,
     textAlign: 'center',
+    fontFamily: 'Lato-Regular',
   },
 });

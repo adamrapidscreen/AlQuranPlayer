@@ -16,12 +16,16 @@ interface SurahHeaderArtProps {
 
 export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = ({ surahNumber }) => {
   // Get the SVG component for this surah
-  const SurahSvg = surahNameSvgs[surahNumber];
+  const SurahSvgModule = surahNameSvgs[surahNumber];
 
   // If SVG not found, return null
-  if (!SurahSvg) {
+  if (!SurahSvgModule) {
+    console.warn(`SVG not found for surah ${surahNumber}`);
     return null;
   }
+
+  // Handle both default export and direct component
+  const SurahSvg = (SurahSvgModule as any).default || SurahSvgModule;
 
   // Create breathing animation
   const scale = useSharedValue(1.0);
@@ -43,14 +47,25 @@ export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = ({ surahNumber }) =
     };
   });
 
+  // Render the SVG component
+  // With react-native-svg-transformer, SVGs are imported as React components
+  const SvgComponent = SurahSvg as React.ComponentType<{
+    width?: number;
+    height?: number;
+    fill?: string;
+    color?: string;
+  }>;
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.svgContainer, animatedStyle]}>
-        <SurahSvg
-          width={300}
-          height={150}
-          fill={KiswahTheme.Primary}
-        />
+        <View style={{ width: 300, height: 150 }}>
+          <SvgComponent
+            width={300}
+            height={150}
+            fill={KiswahTheme.Primary}
+          />
+        </View>
       </Animated.View>
     </View>
   );
