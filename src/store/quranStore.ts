@@ -13,7 +13,6 @@ export const useQuranStore = create<QuranStoreState>((set) => {
       const savedReciter = await AsyncStorage.getItem('@selected_reciter');
       if (savedReciter) {
         set({ selectedReciter: savedReciter as Reciter });
-        console.log(`Loaded persisted reciter: ${savedReciter}`);
       }
     } catch (e) {
       console.error('Failed to load reciter:', e);
@@ -34,7 +33,6 @@ export const useQuranStore = create<QuranStoreState>((set) => {
       AsyncStorage.setItem('@selected_reciter', reciter).catch((e) => {
         console.error('Failed to save reciter:', e);
       });
-      console.log(`Reciter set to: ${reciter}`);
     },
     setSelectedSurah: (surah: number) => set({ selectedSurah: surah }),
     setCurrentAyahs: (ayahs: AyahWithTranslation[]) =>

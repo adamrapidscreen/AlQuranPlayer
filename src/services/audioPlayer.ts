@@ -16,7 +16,6 @@ const initializeAudioMode = async () => {
       interruptionModeAndroid: 'doNotMix', // Prevent overlapping on Android
     });
     audioModeInitialized = true;
-    console.log('Audio mode configured');
   } catch (error) {
     console.error('Error setting up audio mode:', error);
   }
@@ -70,21 +69,18 @@ export const audioPlayer = {
       
       isPlaying = false;
       
-      // Wait for audio to be loaded
+      // Wait for audio to be loaded with optimized polling
       let attempts = 0;
-      const maxAttempts = 100; // 10 seconds max wait
+      const maxAttempts = 300; // 30 seconds max wait
+      const pollInterval = 100; // Check every 100ms
+      
       while (!player.isLoaded && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
         attempts++;
       }
       
       if (!player.isLoaded) {
-        console.error('Audio failed to load. Player state:', {
-          isLoaded: player.isLoaded,
-          duration: player.duration,
-          isBuffering: player.isBuffering,
-        });
-        throw new Error('Audio failed to load within timeout');
+        throw new Error('Audio failed to load within timeout (30 seconds). The file may be corrupted or the network connection is too slow.');
       }
     } catch (error) {
       console.error('Error loading audio:', error);
@@ -199,8 +195,6 @@ export const audioPlayer = {
         throw new Error('Sleep timer must be greater than 0');
       }
       
-      console.log(`Sleep timer set for ${minutes} minutes`);
-      
       // Cancel any existing sleep timer
       if (sleepTimerId) {
         clearTimeout(sleepTimerId);
@@ -227,7 +221,6 @@ export const audioPlayer = {
       };
       
       sleepTimerId = setTimeout(async () => {
-        console.log('Sleep timer triggered - stopping audio');
         await stopFn();
         sleepTimerId = null;
       }, minutes * 60 * 1000);
@@ -238,7 +231,6 @@ export const audioPlayer = {
   },
 
   async cancelSleepTimer(): Promise<void> {
-    console.log('Sleep timer cancelled');
     if (sleepTimerId) {
       clearTimeout(sleepTimerId);
       sleepTimerId = null;

@@ -14,13 +14,12 @@ interface SurahHeaderArtProps {
   surahNumber: number;
 }
 
-export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = ({ surahNumber }) => {
+export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = React.memo(({ surahNumber }) => {
   // Get the SVG component for this surah
   const SurahSvgModule = surahNameSvgs[surahNumber];
 
   // If SVG not found, return null
   if (!SurahSvgModule) {
-    console.warn(`SVG not found for surah ${surahNumber}`);
     return null;
   }
 
@@ -59,17 +58,17 @@ export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = ({ surahNumber }) =
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.svgContainer, animatedStyle]}>
-        <View style={{ width: 170, height: 85 }}>
+        <View style={{ width: 150, height: 75 }}>
           <SvgComponent
-            width={170}
-            height={85}
+            width={150}
+            height={75}
             fill={KiswahTheme.Primary}
           />
         </View>
       </Animated.View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -78,7 +77,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   svgContainer: {
-    marginTop: 15, // Move SVG text down
+    marginTop: 25, // Move SVG text down more
     shadowColor: KiswahTheme.Primary,
     shadowOffset: {
       width: 0,

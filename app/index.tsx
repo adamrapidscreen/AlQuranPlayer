@@ -59,26 +59,32 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#1a1a1a',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
+    <View style={styles.navigatorContainer}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#1a1a1a',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          contentStyle: {
+            backgroundColor: KiswahTheme.Background,
+          },
+          animation: 'fade',
+          animationDuration: 150,
+        }}
+      >
       <Stack.Screen
         name="Home"
         component={HomeScreen}
-        options={{ title: 'Al-Quran Player' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="SurahList"
         component={SurahListScreen}
-        options={{ title: 'Choose Surah' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Player"
@@ -97,11 +103,16 @@ export default function RootLayout() {
         component={DebugScreen}
         options={{ title: 'Debug Console' }}
       />
-    </Stack.Navigator>
+      </Stack.Navigator>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  navigatorContainer: {
+    flex: 1,
+    backgroundColor: KiswahTheme.Background,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

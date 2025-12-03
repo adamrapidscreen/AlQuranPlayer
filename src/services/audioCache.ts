@@ -22,11 +22,14 @@ export const audioCache = {
         return false;
       }
       
-      // Validate file size - MP3 files should be at least several KB
-      // Files < 1KB are likely error pages from old invalid URLs
+      // Validate file size - MP3 files should be between 10KB and 50MB
+      // Files < 10KB are likely error pages or corrupted downloads
+      // Files > 50MB are suspiciously large for a single surah
       const fileSize = info.size || 0;
-      if (fileSize < 1024) {
-        console.log(`Cached file is too small (${fileSize} bytes), likely corrupted. Deleting...`);
+      const MIN_SIZE = 10 * 1024; // 10KB
+      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+      
+      if (fileSize < MIN_SIZE || fileSize > MAX_SIZE) {
         await this.deleteAudio(surahNumber, reciterId);
         return false;
       }
@@ -75,10 +78,11 @@ export const audioCache = {
       }
       
       const fileSize = fileInfo.size || 0;
+      const MIN_SIZE = 10 * 1024; // 10KB
       
-      // Validate file size - MP3 files should be at least several KB
-      // Error pages (404, etc.) are typically < 1KB
-      if (fileSize < 1024) {
+      // Validate file size - MP3 files should be at least 10KB
+      // Error pages (404, etc.) are typically < 10KB
+      if (fileSize < MIN_SIZE) {
         throw new Error(
           `Downloaded file is too small (${fileSize} bytes). ` +
           `This is likely an error page, not an audio file. ` +

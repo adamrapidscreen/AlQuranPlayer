@@ -3,26 +3,33 @@ import { AyahWithTranslation } from '../types/index';
 
 const API_BASE = 'https://api.alquran.cloud/v1';
 
+// Cache for surah text to avoid re-fetching
+const surahTextCache = new Map<number, { arabic: any[]; english: any[] }>();
+
 export const quranApi = {
-  // Get full surah with Arabic + English
+  // Get full surah with Arabic + English (cached)
   async getSurah(surahNumber: number) {
     try {
-      console.log(`Fetching Surah ${surahNumber} from API...`);
+      // Check cache first
+      if (surahTextCache.has(surahNumber)) {
+        return surahTextCache.get(surahNumber)!;
+      }
       
-      // Get Arabic
-      const arabicResponse = await axios.get(
-        `${API_BASE}/surah/${surahNumber}`
-      );
-      
-      // Get English translation
-      const englishResponse = await axios.get(
-        `${API_BASE}/surah/${surahNumber}/en.asad`
-      );
+      // Fetch both in parallel for better performance
+      const [arabicResponse, englishResponse] = await Promise.all([
+        axios.get(`${API_BASE}/surah/${surahNumber}`),
+        axios.get(`${API_BASE}/surah/${surahNumber}/en.asad`),
+      ]);
 
-      return {
+      const data = {
         arabic: arabicResponse.data.data.ayahs,
         english: englishResponse.data.data.ayahs,
       };
+      
+      // Cache the result
+      surahTextCache.set(surahNumber, data);
+      
+      return data;
     } catch (error) {
       console.error(`Error fetching Surah ${surahNumber}:`, error);
       throw error;
@@ -31,19 +38,16 @@ export const quranApi = {
 
   // Format ayahs with translation
   formatAyahs(data: { arabic: any[]; english: any[] }): AyahWithTranslation[] {
-    if (!data.arabic || !data.english) {
-      console.warn('Missing arabic or english data');
+    if (!data?.arabic || !data?.english) {
       return [];
     }
 
-    const formatted = data.arabic.map((arabicAyah: any, index: number) => ({
+    return data.arabic.map((arabicAyah: any, index: number) => ({
       number: arabicAyah.number,
       text: arabicAyah.text || '',
       numberInSurah: arabicAyah.numberInSurah,
       englishText: data.english[index]?.text || '',
     }));
-
-    return formatted;
   },
 
   /**
@@ -70,7 +74,7 @@ export const quranApi = {
       // Get full chapter audio from quranapi.pages.dev
       // Endpoint: /api/audio/{surahNo}.json
       const apiUrl = `https://quranapi.pages.dev/api/audio/${surahNumber}.json`;
-      const response = await axios.get(apiUrl, { timeout: 10000 });
+      const response = await axios.get(apiUrl, { timeout: 30000 }); // Increased to 30 seconds
       
       // Response format: { "1": { "reciter": "...", "url": "...", "originalUrl": "..." }, ... }
       const reciterData = response.data?.[reciterNumber];
@@ -91,14 +95,7 @@ export const quranApi = {
       
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to get audio URL from quranapi.pages.dev:', errorMessage);
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number; data?: unknown } };
-        if (axiosError.response) {
-          console.error('API Response status:', axiosError.response.status);
-          console.error('API Response data:', JSON.stringify(axiosError.response.data, null, 2));
-        }
-      }
+      console.error('Failed to get audio URL:', errorMessage);
       throw new Error(`Could not get audio URL: ${errorMessage}`);
     }
   },

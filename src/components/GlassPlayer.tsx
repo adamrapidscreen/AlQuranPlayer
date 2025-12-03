@@ -14,7 +14,7 @@ interface GlassPlayerProps {
   onPrev: () => void;
 }
 
-export const GlassPlayer: React.FC<GlassPlayerProps> = ({
+export const GlassPlayer: React.FC<GlassPlayerProps> = React.memo(({
   surahName,
   reciterName,
   isPlaying,
@@ -89,7 +89,7 @@ export const GlassPlayer: React.FC<GlassPlayerProps> = ({
       </BlurView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

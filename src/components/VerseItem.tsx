@@ -8,7 +8,7 @@ interface VerseItemProps {
   verseNumber: number;
 }
 
-export const VerseItem: React.FC<VerseItemProps> = ({
+export const VerseItem: React.FC<VerseItemProps> = React.memo(({
   arabicText,
   translation,
   verseNumber,
@@ -27,7 +27,7 @@ export const VerseItem: React.FC<VerseItemProps> = ({
       <Text style={styles.translation}>{translation}</Text>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

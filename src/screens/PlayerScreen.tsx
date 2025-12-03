@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -10,6 +10,13 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Animated, {
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming,
+} from 'react-native-reanimated';
 import { GlassPlayer } from '../components/GlassPlayer';
 import { SurahHeaderArt } from '../components/SurahHeaderArt';
 import { VerseItem } from '../components/VerseItem';
@@ -23,38 +30,105 @@ import { getReciterName, getSurahName } from '../utils/constants';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// Download Progress Indicator Component with Breathing Animation
+const DownloadProgressIndicator = ({ progress }: { progress: number }) => {
+  const scale = useSharedValue(1.0);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withTiming(1.05, {
+        duration: 4000,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1, // infinite
+      true // reverse
+    );
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.downloadProgressContainer, animatedStyle]}>
+      <Text style={styles.downloadProgressText}>{progress}%</Text>
+    </Animated.View>
+  );
+};
+
 export const PlayerScreen = ({ route, navigation }: any) => {
   const { surahNumber } = route.params;
-  const { selectedReciter, setCurrentAyahs, setError, sleepTimerEndTime, setSleepTimerEndTime } = useQuranStore();
+  const { selectedReciter, setCurrentAyahs, setError, sleepTimerEndTime, setSleepTimerEndTime, error: storeError } = useQuranStore();
   const [ayahs, setAyahs] = useState<AyahWithTranslation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setErrorLocal] = useState<string | null>(null);
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
+  const [loadedSurahNumber, setLoadedSurahNumber] = useState<number | null>(null);
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [sleepCountdown, setSleepCountdown] = useState<number | null>(null);
+  const shouldAutoPlayRef = useRef(false);
+  const previousReciterRef = useRef(selectedReciter);
 
   useEffect(() => {
+    // Check if reciter changed - if so, stop audio to prevent overlap
+    if (previousReciterRef.current !== selectedReciter) {
+      audioPlayer.stop().catch(() => {}); // Stop audio silently
+      setAudioLoaded(false);
+      setLoadedSurahNumber(null);
+      setIsPlaying(false);
+      previousReciterRef.current = selectedReciter;
+    }
+
+    // Reset error state when switching surahs
+    setErrorLocal(null);
+    if (loadedSurahNumber !== surahNumber) {
+      setAudioLoaded(false);
+      setLoadedSurahNumber(null);
+      setIsPlaying(false);
+    }
     loadSurah();
-    return () => {
-      // Don't stop audio here - let it keep playing
-      // Only unload when truly leaving the player permanently
-    };
-  }, [surahNumber]);
+  }, [surahNumber, selectedReciter]);
 
-  // Sync isPlaying state with audio player
+  // Auto-load and play audio when surah changes
   useEffect(() => {
+    // If next/prev button was pressed, start audio immediately (don't wait for text)
+    if (shouldAutoPlayRef.current && loadedSurahNumber !== surahNumber) {
+      shouldAutoPlayRef.current = false; // Reset flag
+      // Start audio download immediately, in parallel with text loading
+      loadAndPlayAudio();
+      return;
+    }
+
+    // Otherwise, auto-load if:
+    // 1. Audio was loaded for a different surah (or no surah loaded yet)
+    // 2. Surah data has finished loading
+    // 3. Audio was already playing
+    if (loadedSurahNumber !== surahNumber && !loading && ayahs.length > 0 && isPlaying) {
+      const timer = setTimeout(() => {
+        loadAndPlayAudio();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [surahNumber, loadedSurahNumber, isPlaying, loading, ayahs.length]);
+
+  // Sync isPlaying state with audio player (optimized polling)
+  useEffect(() => {
+    if (!audioLoaded) return;
+    
     const interval = setInterval(async () => {
       const status = await audioPlayer.getStatus();
       if (status) {
         setIsPlaying(status.isPlaying);
       }
-    }, 500);
+    }, 1000); // Reduced frequency from 500ms to 1000ms
 
     return () => clearInterval(interval);
-  }, []);
+  }, [audioLoaded]);
 
   // Sleep timer countdown - persists across surah/reciter changes
   useEffect(() => {
@@ -91,14 +165,12 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     try {
       setLoading(true);
       setErrorLocal(null);
-      console.log(`Loading Surah ${surahNumber}...`);
 
       const data = await quranApi.getSurah(surahNumber);
       const formattedAyahs = quranApi.formatAyahs(data);
 
       setAyahs(formattedAyahs);
       setCurrentAyahs(formattedAyahs);
-      console.log(`Loaded ${formattedAyahs.length} ayahs`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error loading surah:', errorMsg);
@@ -135,21 +207,37 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (surahNumber < 114) {
-      const nextSurah = surahNumber + 1;
-      navigation.replace('Player', { surahNumber: nextSurah });
-    } else {
-      console.log('Already at last surah');
+      // Stop current audio before navigating
+      if (audioLoaded || isPlaying) {
+        try {
+          await audioPlayer.stop();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          // Non-critical, continue
+        }
+      }
+      // Set flag to auto-play after navigation
+      shouldAutoPlayRef.current = true;
+      navigation.navigate('Player', { surahNumber: surahNumber + 1 });
     }
   };
 
-  const handlePrev = () => {
+  const handlePrev = async () => {
     if (surahNumber > 1) {
-      const prevSurah = surahNumber - 1;
-      navigation.replace('Player', { surahNumber: prevSurah });
-    } else {
-      console.log('Already at first surah');
+      // Stop current audio before navigating
+      if (audioLoaded || isPlaying) {
+        try {
+          await audioPlayer.stop();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          // Non-critical, continue
+        }
+      }
+      // Set flag to auto-play after navigation
+      shouldAutoPlayRef.current = true;
+      navigation.navigate('Player', { surahNumber: surahNumber - 1 });
     }
   };
 
@@ -168,43 +256,40 @@ export const PlayerScreen = ({ route, navigation }: any) => {
 
   const loadAndPlayAudio = async () => {
     try {
-      // Only stop if switching to DIFFERENT surah
-      if (audioLoaded) {
-        console.log('Stopping previous audio...');
-        await audioPlayer.stop();
+      // Always stop any currently playing audio before loading new audio
+      if (audioLoaded || isPlaying) {
+        try {
+          await audioPlayer.stop();
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (stopError) {
+          // Non-critical error, continue
+        }
         setAudioLoaded(false);
+        setLoadedSurahNumber(null);
+        setIsPlaying(false);
       }
       
       setIsDownloading(true);
       setDownloadProgress(0);
 
-      console.log(`=== LOADING AUDIO FOR SURAH ${surahNumber} ===`);
-      console.log(`Reciter: ${selectedReciter}`);
-
       const audioUrl = await quranApi.getReciterAudioUrl(surahNumber, selectedReciter);
-      console.log(`Generated URL: ${audioUrl}`);
-
       const cached = await audioCache.audioExists(surahNumber, selectedReciter);
       let audioUri: string;
 
       if (cached) {
-        console.log('✅ Audio found in cache');
         audioUri = await audioCache.getAudioFilePath(surahNumber, selectedReciter);
       } else {
-        console.log('📥 Downloading audio...');
         audioUri = await audioCache.downloadAudio(
           surahNumber,
           selectedReciter,
           audioUrl,
-          (progress) => {
-            setDownloadProgress(progress);
-            console.log(`Download progress: ${progress}%`);
-          }
+          (progress) => setDownloadProgress(progress)
         );
       }
 
       await audioPlayer.loadAudio(audioUri);
       setAudioLoaded(true);
+      setLoadedSurahNumber(surahNumber); // Track which surah's audio is loaded
 
       await audioPlayer.play();
       setIsPlaying(true);
@@ -212,9 +297,12 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       setDownloadProgress(0);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      console.error('❌ Error:', errorMsg);
-      setErrorLocal(errorMsg);
+      console.error('Error loading audio:', errorMsg);
+      setErrorLocal(`Failed to load audio: ${errorMsg}`);
       setIsDownloading(false);
+      setAudioLoaded(false);
+      setLoadedSurahNumber(null);
+      setIsPlaying(false);
     }
   };
 
@@ -250,16 +338,36 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     );
   }
 
-  if (error) {
+  if (storeError || errorLocal) {
+    const displayError = storeError || errorLocal;
     return (
       <LinearGradient
         colors={['#1e3c72', KiswahTheme.Background]}
         style={styles.gradientContainer}
       >
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error: {error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadSurah}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={styles.errorText}>Error: {displayError}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={async () => {
+              setErrorLocal(null);
+              setError(null);
+              // Clear cache for this surah/reciter before retrying
+              await audioCache.deleteAudio(surahNumber, selectedReciter);
+              loadAndPlayAudio();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Clear Cache & Retry Audio</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.retryButton, { marginTop: 10, backgroundColor: KiswahTheme.Secondary }]} 
+            onPress={() => {
+              setErrorLocal(null);
+              setError(null);
+              loadSurah();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry Loading Surah</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -282,13 +390,17 @@ export const PlayerScreen = ({ route, navigation }: any) => {
 
       {/* Middle Section (50%): Scrollable Verse List */}
       <View style={[styles.middleSection, { height: middleSectionHeight, top: topSectionHeight }]}>
-        <FlatList
-          data={ayahs}
-          renderItem={renderVerse}
-          keyExtractor={(item) => item.number.toString()}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+              <FlatList
+                  data={ayahs}
+                  renderItem={renderVerse}
+                  keyExtractor={(item) => item.number.toString()}
+                  contentContainerStyle={styles.listContent}
+                  showsVerticalScrollIndicator={false}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={5}
+                  windowSize={10}
+                  removeClippedSubviews={true}
+                />
       </View>
 
       {/* Bottom Section (20%): GlassPlayer */}
@@ -306,14 +418,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
 
       {/* Download Progress */}
       {isDownloading && (
-        <View style={styles.downloadContainer}>
-          <Text style={styles.downloadText}>Downloading... {downloadProgress}%</Text>
-          <View style={styles.progressBar}>
-            <View
-              style={[styles.progressFill, { width: `${downloadProgress}%` }]}
-            />
-          </View>
-        </View>
+        <DownloadProgressIndicator progress={downloadProgress} />
       )}
 
       {/* Sleep Timer Display */}
@@ -443,30 +548,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Lato-Regular',
   },
-  downloadContainer: {
+  downloadProgressContainer: {
     position: 'absolute',
-    top: 60,
-    left: 20,
+    top: 44,
     right: 20,
     zIndex: 10,
+    shadowColor: KiswahTheme.Primary,
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 10, // Android shadow
   },
-  downloadText: {
+  downloadProgressText: {
     color: KiswahTheme.Primary,
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 18,
     fontWeight: '600',
-    textAlign: 'center',
     fontFamily: 'Lato-Regular',
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#333',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: KiswahTheme.Primary,
   },
   sleepTimerDisplay: {
     position: 'absolute',
