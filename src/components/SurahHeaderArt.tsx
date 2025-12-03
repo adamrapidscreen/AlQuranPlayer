@@ -59,10 +59,10 @@ export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = ({ surahNumber }) =
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.svgContainer, animatedStyle]}>
-        <View style={{ width: 300, height: 150 }}>
+        <View style={{ width: 170, height: 85 }}>
           <SvgComponent
-            width={300}
-            height={150}
+            width={170}
+            height={85}
             fill={KiswahTheme.Primary}
           />
         </View>
@@ -75,9 +75,10 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
+    paddingVertical: 5,
   },
   svgContainer: {
+    marginTop: 15, // Move SVG text down
     shadowColor: KiswahTheme.Primary,
     shadowOffset: {
       width: 0,

@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Dimensions,
     FlatList,
     Modal,
     StyleSheet,
@@ -19,6 +20,8 @@ import { quranApi } from '../services/quranApi';
 import { useQuranStore } from '../store/quranStore';
 import { AyahWithTranslation } from '../types/index';
 import { getReciterName, getSurahName } from '../utils/constants';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const PlayerScreen = ({ route, navigation }: any) => {
   const { surahNumber } = route.params;
@@ -41,7 +44,17 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     };
   }, [surahNumber]);
 
-  // Time display can be added to GlassPlayer in the future if needed
+  // Sync isPlaying state with audio player
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const status = await audioPlayer.getStatus();
+      if (status) {
+        setIsPlaying(status.isPlaying);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Sleep timer countdown - persists across surah/reciter changes
   useEffect(() => {
@@ -123,13 +136,21 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   };
 
   const handleNext = () => {
-    // TODO: Implement next surah logic
-    console.log('Next surah');
+    if (surahNumber < 114) {
+      const nextSurah = surahNumber + 1;
+      navigation.replace('Player', { surahNumber: nextSurah });
+    } else {
+      console.log('Already at last surah');
+    }
   };
 
   const handlePrev = () => {
-    // TODO: Implement previous surah logic
-    console.log('Previous surah');
+    if (surahNumber > 1) {
+      const prevSurah = surahNumber - 1;
+      navigation.replace('Player', { surahNumber: prevSurah });
+    } else {
+      console.log('Already at first surah');
+    }
   };
 
   const handleSleepTimer = (minutes: number) => {
@@ -245,19 +266,43 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     );
   }
 
+  const topSectionHeight = SCREEN_HEIGHT * 0.15;
+  const middleSectionHeight = SCREEN_HEIGHT * 0.65;
+  const bottomSectionHeight = SCREEN_HEIGHT * 0.20;
+
   return (
     <LinearGradient
       colors={['#1e3c72', KiswahTheme.Background]}
       style={styles.gradientContainer}
     >
-      <FlatList
-        data={ayahs}
-        renderItem={renderVerse}
-        keyExtractor={(item) => item.number.toString()}
-        ListHeaderComponent={<SurahHeaderArt surahNumber={surahNumber} />}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Top Section (15%): SurahHeaderArt */}
+      <View style={[styles.topSection, { height: topSectionHeight }]}>
+        <SurahHeaderArt surahNumber={surahNumber} />
+      </View>
+
+      {/* Middle Section (50%): Scrollable Verse List */}
+      <View style={[styles.middleSection, { height: middleSectionHeight, top: topSectionHeight }]}>
+        <FlatList
+          data={ayahs}
+          renderItem={renderVerse}
+          keyExtractor={(item) => item.number.toString()}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+
+      {/* Bottom Section (20%): GlassPlayer */}
+      <View style={[styles.bottomSection, { height: bottomSectionHeight }]}>
+        <GlassPlayer
+          surahName={surahName}
+          reciterName={reciterName}
+          isPlaying={isPlaying}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onNext={handleNext}
+          onPrev={handlePrev}
+        />
+      </View>
 
       {/* Download Progress */}
       {isDownloading && (
@@ -283,36 +328,12 @@ export const PlayerScreen = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* Glass Player - Floating at bottom */}
-      <GlassPlayer
-        surahName={surahName}
-        reciterName={reciterName}
-        isPlaying={isPlaying}
-        onPlay={handlePlay}
-        onPause={handlePause}
-        onNext={handleNext}
-        onPrev={handlePrev}
-      />
-
       {/* Sleep Timer Button */}
       <TouchableOpacity
         style={styles.sleepButton}
         onPress={() => setShowSleepModal(true)}
       >
         <Text style={styles.sleepButtonText}>⏱ Sleep Timer</Text>
-      </TouchableOpacity>
-
-      {/* Text View Button */}
-      <TouchableOpacity
-        style={styles.textViewButton}
-        onPress={() =>
-          navigation.navigate('TextViewer', {
-            surahNumber,
-            ayahs,
-          })
-        }
-      >
-        <Text style={styles.textViewButtonText}>View Text</Text>
       </TouchableOpacity>
 
       {/* Sleep Timer Modal */}
@@ -355,9 +376,34 @@ const styles = StyleSheet.create({
   gradientContainer: {
     flex: 1,
   },
-  listContent: {
-    paddingBottom: 150, // Space for GlassPlayer
+  topSection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 35,
+    paddingBottom: 10,
+  },
+  middleSection: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
+  },
+  bottomSection: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 50,
+    zIndex: 100, // Ensure it's on top layer
+  },
+  listContent: {
+    paddingVertical: 10,
   },
   loadingContainer: {
     flex: 1,
@@ -450,41 +496,19 @@ const styles = StyleSheet.create({
   },
   sleepButton: {
     position: 'absolute',
-    bottom: 100,
-    left: 20,
-    right: 20,
+    top: 44, // 20 (original) + 24 (button height: 8*2 padding + ~8 text height)
+    left: 10,
     backgroundColor: 'rgba(197, 160, 89, 0.2)',
     borderWidth: 1,
     borderColor: KiswahTheme.Primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    zIndex: 5,
+    zIndex: 10,
   },
   sleepButtonText: {
     color: KiswahTheme.Primary,
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Lato-Regular',
-  },
-  textViewButton: {
-    position: 'absolute',
-    bottom: 150,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(197, 160, 89, 0.2)',
-    borderWidth: 1,
-    borderColor: KiswahTheme.Primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    zIndex: 5,
-  },
-  textViewButtonText: {
-    color: KiswahTheme.Primary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     fontFamily: 'Lato-Regular',
   },

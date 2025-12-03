@@ -93,10 +93,7 @@ export const GlassPlayer: React.FC<GlassPlayerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 30,
-    left: 0,
-    right: 0,
+    width: '100%',
     alignItems: 'center',
     paddingHorizontal: '5%', // This makes the width 90%
   },

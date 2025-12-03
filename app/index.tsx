@@ -83,7 +83,7 @@ export default function RootLayout() {
       <Stack.Screen
         name="Player"
         component={PlayerScreen}
-        options={{ title: 'Player' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="TextViewer"
