@@ -1,9 +1,10 @@
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { KiswahTheme } from '../src/constants/theme';
+import { DEFAULT_THEME_MODE, ThemePalette, type ThemeColors } from '../src/constants/theme';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -19,6 +20,44 @@ import { TextViewerScreen } from '../src/screens/TextViewerScreen';
 const Stack = createNativeStackNavigator();
 
 console.log('App started');
+
+function AppNavigator() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.navigatorContainer}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.Surface,
+          },
+          headerTintColor: colors.TextPrimary,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          contentStyle: {
+            backgroundColor: colors.Background,
+          },
+          animation: 'fade',
+          animationDuration: 150,
+        }}
+      >
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="SurahList" component={SurahListScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Player" component={PlayerScreen} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="TextViewer"
+          component={TextViewerScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen name="Debug" component={DebugScreen} options={{ title: 'Debug Console' }} />
+      </Stack.Navigator>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -48,8 +87,8 @@ export default function RootLayout() {
   // Show loading view while fonts are loading
   if (!fontsLoaded && !fontError) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={KiswahTheme.Primary} />
+      <View style={loadingStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={ThemePalette[DEFAULT_THEME_MODE].Primary} />
       </View>
     );
   }
@@ -59,64 +98,25 @@ export default function RootLayout() {
   }
 
   return (
-    <View style={styles.navigatorContainer}>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: '#1a1a1a',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          contentStyle: {
-            backgroundColor: KiswahTheme.Background,
-          },
-          animation: 'fade',
-          animationDuration: 150,
-        }}
-      >
-      <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="SurahList"
-        component={SurahListScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Player"
-        component={PlayerScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="TextViewer"
-        component={TextViewerScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="Debug"
-        component={DebugScreen}
-        options={{ title: 'Debug Console' }}
-      />
-      </Stack.Navigator>
-    </View>
+    <ThemeProvider>
+      <AppNavigator />
+    </ThemeProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  navigatorContainer: {
-    flex: 1,
-    backgroundColor: KiswahTheme.Background,
-  },
+const loadingStyles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: KiswahTheme.Background,
+    backgroundColor: ThemePalette[DEFAULT_THEME_MODE].Background,
   },
 });
+
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    navigatorContainer: {
+      flex: 1,
+      backgroundColor: colors.Background,
+    },
+  });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -8,8 +8,12 @@ import {
 } from 'react-native';
 import { audioCache } from '../services/audioCache';
 import { errorLogger } from '../services/errorLogger';
+import { useTheme } from '../context/ThemeContext';
+import type { ThemeColors } from '../constants/theme';
 
 export const DebugScreen = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [logs, setLogs] = useState<string>('');
   const [filter, setFilter] = useState<'all' | 'error' | 'warn' | 'log'>(
     'all'
@@ -79,18 +83,10 @@ export const DebugScreen = () => {
         {(['all', 'error', 'warn', 'log'] as const).map((f) => (
           <TouchableOpacity
             key={f}
-            style={[
-              styles.filterBtn,
-              filter === f && styles.filterBtnActive,
-            ]}
+            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
             onPress={() => handleFilterChange(f)}
           >
-            <Text
-              style={[
-                styles.filterBtnText,
-                filter === f && styles.filterBtnTextActive,
-              ]}
-            >
+            <Text style={[styles.filterBtnText, filter === f && styles.filterBtnTextActive]}>
               {f.toUpperCase()}
             </Text>
           </TouchableOpacity>
@@ -102,31 +98,19 @@ export const DebugScreen = () => {
       </ScrollView>
 
       <View style={styles.actionContainer}>
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.refreshBtn]}
-          onPress={refreshLogs}
-        >
+        <TouchableOpacity style={[styles.actionBtn, styles.refreshBtn]} onPress={refreshLogs}>
           <Text style={styles.actionBtnText}>🔄 Refresh</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.exportBtn]}
-          onPress={handleExport}
-        >
+        <TouchableOpacity style={[styles.actionBtn, styles.exportBtn]} onPress={handleExport}>
           <Text style={styles.actionBtnText}>💾 Export</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.clearBtn]}
-          onPress={handleClearLogs}
-        >
+        <TouchableOpacity style={[styles.actionBtn, styles.clearBtn]} onPress={handleClearLogs}>
           <Text style={styles.actionBtnText}>🗑 Clear Logs</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.clearCacheBtn]}
-          onPress={handleClearCache}
-        >
+        <TouchableOpacity style={[styles.actionBtn, styles.clearCacheBtn]} onPress={handleClearCache}>
           <Text style={styles.actionBtnText}>🗑️ Clear Audio Cache</Text>
         </TouchableOpacity>
       </View>
@@ -134,82 +118,86 @@ export const DebugScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-    padding: 10,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#00ff00',
-    marginBottom: 10,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    marginBottom: 10,
-    gap: 5,
-  },
-  filterBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#222',
-    borderRadius: 5,
-  },
-  filterBtnActive: {
-    backgroundColor: '#00ff00',
-  },
-  filterBtnText: {
-    color: '#888',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  filterBtnTextActive: {
-    color: '#000',
-  },
-  logsContainer: {
-    flex: 1,
-    backgroundColor: '#111',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  logsText: {
-    color: '#00ff00',
-    fontSize: 11,
-    fontFamily: 'monospace',
-    lineHeight: 16,
-  },
-  actionContainer: {
-    flexDirection: 'row',
-    gap: 5,
-    flexWrap: 'wrap',
-  },
-  actionBtn: {
-    flex: 1,
-    minWidth: '30%',
-    paddingVertical: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  actionBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  refreshBtn: {
-    backgroundColor: '#0066ff',
-  },
-  exportBtn: {
-    backgroundColor: '#aa00aa',
-  },
-  clearBtn: {
-    backgroundColor: '#ff0000',
-  },
-  clearCacheBtn: {
-    backgroundColor: '#ff6600',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.Background,
+      padding: 10,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.Secondary,
+      marginBottom: 10,
+    },
+    filterContainer: {
+      flexDirection: 'row',
+      marginBottom: 10,
+      gap: 5,
+    },
+    filterBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      backgroundColor: colors.Surface,
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: colors.Border,
+    },
+    filterBtnActive: {
+      backgroundColor: colors.Primary,
+      borderColor: colors.Primary,
+    },
+    filterBtnText: {
+      color: colors.TextSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    filterBtnTextActive: {
+      color: colors.Background,
+    },
+    logsContainer: {
+      flex: 1,
+      backgroundColor: colors.Surface,
+      padding: 10,
+      borderRadius: 5,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.Border,
+    },
+    logsText: {
+      color: colors.TextPrimary,
+      fontSize: 11,
+      fontFamily: 'monospace',
+      lineHeight: 16,
+    },
+    actionContainer: {
+      flexDirection: 'row',
+      gap: 5,
+      flexWrap: 'wrap',
+    },
+    actionBtn: {
+      flex: 1,
+      minWidth: '30%',
+      paddingVertical: 10,
+      borderRadius: 5,
+      alignItems: 'center',
+    },
+    actionBtnText: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 12,
+    },
+    refreshBtn: {
+      backgroundColor: '#0066ff',
+    },
+    exportBtn: {
+      backgroundColor: '#aa00aa',
+    },
+    clearBtn: {
+      backgroundColor: '#ff0000',
+    },
+    clearCacheBtn: {
+      backgroundColor: '#ff6600',
+    },
+  });

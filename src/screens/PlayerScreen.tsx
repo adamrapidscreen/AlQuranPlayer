@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -20,45 +20,20 @@ import Animated, {
 import { GlassPlayer } from '../components/GlassPlayer';
 import { SurahHeaderArt } from '../components/SurahHeaderArt';
 import { VerseItem } from '../components/VerseItem';
-import { KiswahTheme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { audioCache } from '../services/audioCache';
 import { audioPlayer } from '../services/audioPlayer';
 import { quranApi } from '../services/quranApi';
 import { useQuranStore } from '../store/quranStore';
 import { AyahWithTranslation } from '../types/index';
 import { getReciterName, getSurahName } from '../utils/constants';
+import type { ThemeColors } from '../constants/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Download Progress Indicator Component with Breathing Animation
-const DownloadProgressIndicator = ({ progress }: { progress: number }) => {
-  const scale = useSharedValue(1.0);
-
-  useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(1.05, {
-        duration: 4000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1, // infinite
-      true // reverse
-    );
-  }, [scale]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
-
-  return (
-    <Animated.View style={[styles.downloadProgressContainer, animatedStyle]}>
-      <Text style={styles.downloadProgressText}>{progress}%</Text>
-    </Animated.View>
-  );
-};
-
 export const PlayerScreen = ({ route, navigation }: any) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { surahNumber } = route.params;
   const { selectedReciter, setCurrentAyahs, setError, sleepTimerEndTime, setSleepTimerEndTime, error: storeError } = useQuranStore();
   const [ayahs, setAyahs] = useState<AyahWithTranslation[]>([]);
@@ -73,6 +48,31 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const [sleepCountdown, setSleepCountdown] = useState<number | null>(null);
   const shouldAutoPlayRef = useRef(false);
   const previousReciterRef = useRef(selectedReciter);
+
+  const DownloadProgressIndicator = ({ progress }: { progress: number }) => {
+    const scale = useSharedValue(1.0);
+
+    useEffect(() => {
+      scale.value = withRepeat(
+        withTiming(1.05, {
+          duration: 4000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true
+      );
+    }, [scale]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }));
+
+    return (
+      <Animated.View style={[styles.downloadProgressContainer, animatedStyle]}>
+        <Text style={styles.downloadProgressText}>{progress}%</Text>
+      </Animated.View>
+    );
+  };
 
   useEffect(() => {
     // Check if reciter changed - if so, stop audio to prevent overlap
@@ -326,12 +326,9 @@ export const PlayerScreen = ({ route, navigation }: any) => {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1e3c72', KiswahTheme.Background]}
-        style={styles.gradientContainer}
-      >
+      <LinearGradient colors={[colors.Background, colors.Background]} style={styles.gradientContainer}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={KiswahTheme.Primary} />
+          <ActivityIndicator size="large" color={colors.Primary} />
           <Text style={styles.loadingText}>Loading Surah {surahNumber}...</Text>
         </View>
       </LinearGradient>
@@ -341,10 +338,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   if (storeError || errorLocal) {
     const displayError = storeError || errorLocal;
     return (
-      <LinearGradient
-        colors={['#1e3c72', KiswahTheme.Background]}
-        style={styles.gradientContainer}
-      >
+      <LinearGradient colors={[colors.Background, colors.Background]} style={styles.gradientContainer}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error: {displayError}</Text>
           <TouchableOpacity 
@@ -360,7 +354,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
             <Text style={styles.retryButtonText}>Clear Cache & Retry Audio</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.retryButton, { marginTop: 10, backgroundColor: KiswahTheme.Secondary }]} 
+            style={[styles.retryButton, { marginTop: 10, backgroundColor: colors.Secondary }]} 
             onPress={() => {
               setErrorLocal(null);
               setError(null);
@@ -379,10 +373,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const bottomSectionHeight = SCREEN_HEIGHT * 0.20;
 
   return (
-    <LinearGradient
-      colors={['#1e3c72', KiswahTheme.Background]}
-      style={styles.gradientContainer}
-    >
+    <LinearGradient colors={[colors.Background, colors.Background]} style={styles.gradientContainer}>
       {/* Top Section (15%): SurahHeaderArt */}
       <View style={[styles.topSection, { height: topSectionHeight }]}>
         <SurahHeaderArt surahNumber={surahNumber} />
@@ -477,192 +468,194 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  gradientContainer: {
-    flex: 1,
-  },
-  topSection: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 35,
-    paddingBottom: 10,
-  },
-  middleSection: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-  },
-  bottomSection: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 50,
-    zIndex: 100, // Ensure it's on top layer
-  },
-  listContent: {
-    paddingVertical: 10,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: KiswahTheme.TextPrimary,
-    fontSize: 14,
-    marginTop: 15,
-    textAlign: 'center',
-    fontFamily: 'Lato-Regular',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    color: '#ff4444',
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: 'center',
-    fontFamily: 'Lato-Regular',
-  },
-  retryButton: {
-    backgroundColor: KiswahTheme.Primary,
-    paddingHorizontal: 30,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: 20,
-  },
-  retryButtonText: {
-    color: KiswahTheme.Background,
-    fontWeight: '600',
-    fontFamily: 'Lato-Regular',
-  },
-  downloadProgressContainer: {
-    position: 'absolute',
-    top: 44,
-    right: 20,
-    zIndex: 10,
-    shadowColor: KiswahTheme.Primary,
-    shadowOffset: {
-      width: 0,
-      height: 0,
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    gradientContainer: {
+      flex: 1,
+      backgroundColor: colors.Background,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 10, // Android shadow
-  },
-  downloadProgressText: {
-    color: KiswahTheme.Primary,
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Lato-Regular',
-  },
-  sleepTimerDisplay: {
-    position: 'absolute',
-    top: 100,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(197, 160, 89, 0.15)',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  sleepTimerText: {
-    color: KiswahTheme.Primary,
-    fontWeight: '600',
-    fontSize: 14,
-    fontFamily: 'Lato-Regular',
-  },
-  cancelSleepText: {
-    color: '#ff4444',
-    fontWeight: '600',
-    fontSize: 12,
-    fontFamily: 'Lato-Regular',
-  },
-  sleepButton: {
-    position: 'absolute',
-    top: 44, // 20 (original) + 24 (button height: 8*2 padding + ~8 text height)
-    left: 10,
-    backgroundColor: 'rgba(197, 160, 89, 0.2)',
-    borderWidth: 1,
-    borderColor: KiswahTheme.Primary,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    zIndex: 10,
-  },
-  sleepButtonText: {
-    color: KiswahTheme.Primary,
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: 'Lato-Regular',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: KiswahTheme.Surface,
-    borderRadius: 16,
-    padding: 24,
-    width: '80%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: KiswahTheme.TextPrimary,
-    marginBottom: 20,
-    textAlign: 'center',
-    fontFamily: 'Amiri-Bold',
-  },
-  timerOptionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    marginBottom: 24,
-  },
-  timerOption: {
-    backgroundColor: KiswahTheme.Primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginVertical: 8,
-    width: '45%',
-  },
-  timerOptionText: {
-    color: KiswahTheme.Background,
-    fontWeight: '600',
-    fontSize: 16,
-    textAlign: 'center',
-    fontFamily: 'Lato-Regular',
-  },
-  modalCloseButton: {
-    backgroundColor: '#333',
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  modalCloseButtonText: {
-    color: KiswahTheme.TextPrimary,
-    fontWeight: '600',
-    fontSize: 16,
-    textAlign: 'center',
-    fontFamily: 'Lato-Regular',
-  },
-});
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 35,
+      paddingBottom: 10,
+    },
+    middleSection: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20,
+    },
+    bottomSection: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 50,
+      zIndex: 100, // Ensure it's on top layer
+    },
+    listContent: {
+      paddingVertical: 10,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      color: colors.TextPrimary,
+      fontSize: 14,
+      marginTop: 15,
+      textAlign: 'center',
+      fontFamily: 'Lato-Regular',
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    errorText: {
+      color: '#ff4444',
+      fontSize: 14,
+      marginBottom: 20,
+      textAlign: 'center',
+      fontFamily: 'Lato-Regular',
+    },
+    retryButton: {
+      backgroundColor: colors.Primary,
+      paddingHorizontal: 30,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignSelf: 'center',
+      marginTop: 20,
+    },
+    retryButtonText: {
+      color: colors.Background,
+      fontWeight: '600',
+      fontFamily: 'Lato-Regular',
+    },
+    downloadProgressContainer: {
+      position: 'absolute',
+      top: 44,
+      right: 20,
+      zIndex: 10,
+      shadowColor: colors.Primary,
+      shadowOffset: {
+        width: 0,
+        height: 0,
+      },
+      shadowOpacity: 0.6,
+      shadowRadius: 15,
+      elevation: 10, // Android shadow
+    },
+    downloadProgressText: {
+      color: colors.Primary,
+      fontSize: 18,
+      fontWeight: '600',
+      fontFamily: 'Lato-Regular',
+    },
+    sleepTimerDisplay: {
+      position: 'absolute',
+      top: 100,
+      left: 20,
+      right: 20,
+      backgroundColor: 'rgba(212, 175, 55, 0.15)',
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    sleepTimerText: {
+      color: colors.Primary,
+      fontWeight: '600',
+      fontSize: 14,
+      fontFamily: 'Lato-Regular',
+    },
+    cancelSleepText: {
+      color: '#ff4444',
+      fontWeight: '600',
+      fontSize: 12,
+      fontFamily: 'Lato-Regular',
+    },
+    sleepButton: {
+      position: 'absolute',
+      top: 44,
+      left: 10,
+      backgroundColor: 'rgba(212, 175, 55, 0.2)',
+      borderWidth: 1,
+      borderColor: colors.Primary,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      zIndex: 10,
+    },
+    sleepButtonText: {
+      color: colors.Primary,
+      fontSize: 12,
+      fontWeight: '600',
+      fontFamily: 'Lato-Regular',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: colors.Surface,
+      borderRadius: 16,
+      padding: 24,
+      width: '80%',
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.TextPrimary,
+      marginBottom: 20,
+      textAlign: 'center',
+      fontFamily: 'Amiri-Bold',
+    },
+    timerOptionsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-around',
+      marginBottom: 24,
+    },
+    timerOption: {
+      backgroundColor: colors.Primary,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+      marginVertical: 8,
+      width: '45%',
+    },
+    timerOptionText: {
+      color: colors.Background,
+      fontWeight: '600',
+      fontSize: 16,
+      textAlign: 'center',
+      fontFamily: 'Lato-Regular',
+    },
+    modalCloseButton: {
+      backgroundColor: '#333',
+      paddingVertical: 12,
+      borderRadius: 8,
+    },
+    modalCloseButtonText: {
+      color: colors.TextPrimary,
+      fontWeight: '600',
+      fontSize: 16,
+      textAlign: 'center',
+      fontFamily: 'Lato-Regular',
+    },
+  });

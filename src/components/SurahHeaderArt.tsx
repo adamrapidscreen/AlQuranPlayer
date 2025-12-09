@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -8,13 +8,17 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { surahNameSvgs } from '../../assets/surah-names';
-import { KiswahTheme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { ThemeColors } from '../constants/theme';
 
 interface SurahHeaderArtProps {
   surahNumber: number;
 }
 
 export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = React.memo(({ surahNumber }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   // Get the SVG component for this surah
   const SurahSvgModule = surahNameSvgs[surahNumber];
 
@@ -62,7 +66,7 @@ export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = React.memo(({ surah
           <SvgComponent
             width={150}
             height={75}
-            fill={KiswahTheme.Primary}
+            fill={colors.Primary}
           />
         </View>
       </Animated.View>
@@ -70,22 +74,23 @@ export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = React.memo(({ surah
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 5,
-  },
-  svgContainer: {
-    marginTop: 25, // Move SVG text down more
-    shadowColor: KiswahTheme.Primary,
-    shadowOffset: {
-      width: 0,
-      height: 0,
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 5,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 10, // Android shadow
-  },
-});
+    svgContainer: {
+      marginTop: 25, // Move SVG text down more
+      shadowColor: colors.Primary,
+      shadowOffset: {
+        width: 0,
+        height: 0,
+      },
+      shadowOpacity: 0.6,
+      shadowRadius: 15,
+      elevation: 10, // Android shadow
+    },
+  });
 

@@ -1,15 +1,37 @@
-/**
- * Kiswah Theme Palette
- * A premium dark theme inspired by Islamic aesthetics
- */
+export type ThemeMode = 'light' | 'dark';
 
-export const KiswahTheme = {
-  Background: '#0B0C10', // Deep Black
-  Surface: '#1F2833', // Dark Gunmetal - for cards
-  Primary: '#C5A059', // Muted Metallic Gold - for Play buttons/Highlights
-  Secondary: '#45A29E', // Teal - for accents
-  TextPrimary: '#EDEDED', // Off-white
-  TextSecondary: '#A0A0A0', // Grey
-  GlassTint: 'rgba(20, 20, 20, 0.6)', // Glass effect tint
-} as const;
+export type ThemeColors = {
+  Background: string;
+  Surface: string;
+  Primary: string;
+  Secondary: string;
+  TextPrimary: string;
+  TextSecondary: string;
+  Border: string;
+  GlassTint: string;
+};
 
+export const ThemePalette: Record<ThemeMode, ThemeColors> = {
+  light: {
+    Background: '#F8F5F2', // Soft off-white/cream
+    Surface: '#FFFFFF',
+    Primary: '#D4AF37', // Muted gold
+    Secondary: '#006064', // Deep teal
+    TextPrimary: '#2D3436', // Dark charcoal
+    TextSecondary: '#4F5759',
+    Border: 'rgba(45, 52, 54, 0.12)',
+    GlassTint: 'rgba(0, 0, 0, 0.04)',
+  },
+  dark: {
+    Background: '#1A202C', // Deep slate/navy
+    Surface: '#202A3A',
+    Primary: '#D4AF37', // Same gold accent
+    Secondary: '#006064', // Same teal accent
+    TextPrimary: '#FFFFFF',
+    TextSecondary: '#CBD5E0',
+    Border: 'rgba(255, 255, 255, 0.12)',
+    GlassTint: 'rgba(0, 0, 0, 0.45)',
+  },
+};
+
+export const DEFAULT_THEME_MODE: ThemeMode = 'light';

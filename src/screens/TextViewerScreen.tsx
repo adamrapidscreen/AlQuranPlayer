@@ -1,17 +1,16 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useMemo } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AyahWithTranslation } from '../types/index';
+import { useTheme } from '../context/ThemeContext';
+import type { ThemeColors } from '../constants/theme';
 
 export const TextViewerScreen = ({ route, navigation }: any) => {
   const { surahNumber, ayahs } = route.params as {
     surahNumber: number;
     ayahs: AyahWithTranslation[];
   };
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -37,63 +36,64 @@ export const TextViewerScreen = ({ route, navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  backButton: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-    width: 60,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 20,
-  },
-  ayahContainer: {
-    marginBottom: 24,
-  },
-  arabicText: {
-    fontSize: 20,
-    color: '#fff',
-    lineHeight: 36,
-    marginBottom: 8,
-    textAlign: 'right',
-    fontWeight: '600',
-    fontFamily: 'Amiri-Regular',
-  },
-  verseNumber: {
-    fontSize: 12,
-    color: '#007AFF',
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  englishText: {
-    fontSize: 14,
-    color: '#bbb',
-    lineHeight: 22,
-    marginBottom: 12,
-    fontFamily: 'Lato-Regular',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#333',
-    marginTop: 16,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.Background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.Border,
+    },
+    backButton: {
+      color: colors.Secondary,
+      fontSize: 16,
+      fontWeight: '600',
+      width: 60,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.TextPrimary,
+    },
+    scrollView: {
+      flex: 1,
+      padding: 20,
+    },
+    ayahContainer: {
+      marginBottom: 24,
+    },
+    arabicText: {
+      fontSize: 20,
+      color: colors.TextPrimary,
+      lineHeight: 36,
+      marginBottom: 8,
+      textAlign: 'right',
+      fontWeight: '600',
+      fontFamily: 'Amiri-Regular',
+    },
+    verseNumber: {
+      fontSize: 12,
+      color: colors.Secondary,
+      marginBottom: 12,
+      fontWeight: '500',
+    },
+    englishText: {
+      fontSize: 14,
+      color: colors.TextSecondary,
+      lineHeight: 22,
+      marginBottom: 12,
+      fontFamily: 'Lato-Regular',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.Border,
+      marginTop: 16,
+    },
+  });

@@ -1,16 +1,11 @@
-import { useState } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuranStore } from '../store/quranStore';
 import { Surah } from '../types/index';
 import { getReciterName } from '../utils/constants';
-import { KiswahTheme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { ThemeColors } from '../constants/theme';
 
 // All 114 surahs of the Quran
 const ALL_SURAHS: Surah[] = [
@@ -133,6 +128,8 @@ const ALL_SURAHS: Surah[] = [
 export const SurahListScreen = ({ navigation }: any) => {
   const [surahs] = useState<Surah[]>(ALL_SURAHS);
   const { selectedReciter } = useQuranStore();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleSelectSurah = (surah: Surah) => {
     navigation.navigate('Player', { surahNumber: surah.number });
@@ -159,13 +156,8 @@ export const SurahListScreen = ({ navigation }: any) => {
   );
 
   return (
-    <LinearGradient
-      colors={['#1e3c72', KiswahTheme.Background]}
-      style={styles.container}
-    >
-      <Text style={styles.header}>
-        Surahs - {getReciterName(selectedReciter)}
-      </Text>
+    <LinearGradient colors={[colors.Background, colors.Background]} style={styles.container}>
+      <Text style={styles.header}>Surahs - {getReciterName(selectedReciter)}</Text>
       <FlatList
         data={surahs}
         renderItem={renderSurah}
@@ -178,72 +170,74 @@ export const SurahListScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  header: {
-    fontSize: 20,
-    fontFamily: 'Amiri-Bold',
-    color: KiswahTheme.Primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  surahItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    position: 'relative',
-  },
-  surahNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: KiswahTheme.Primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  surahNumberText: {
-    color: KiswahTheme.Primary,
-    fontFamily: 'Lato-Regular',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  surahInfo: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  surahNameArabic: {
-    color: KiswahTheme.TextPrimary,
-    fontSize: 26,
-    fontFamily: 'Amiri-Bold',
-  },
-  surahNameEnglish: {
-    color: KiswahTheme.TextSecondary,
-    fontSize: 14,
-    marginTop: 4,
-    fontFamily: 'Lato-Regular',
-  },
-  ayahCount: {
-    color: KiswahTheme.Primary,
-    fontSize: 12,
-    fontFamily: 'Lato-Regular',
-    marginRight: 5,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: 20,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.Background,
+    },
+    list: {
+      flex: 1,
+    },
+    listContent: {
+      paddingBottom: 20,
+    },
+    header: {
+      fontSize: 20,
+      fontFamily: 'Amiri-Bold',
+      color: colors.Primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    surahItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      position: 'relative',
+    },
+    surahNumber: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: colors.Primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    surahNumberText: {
+      color: colors.Primary,
+      fontFamily: 'Lato-Regular',
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    surahInfo: {
+      flex: 1,
+      marginLeft: 15,
+    },
+    surahNameArabic: {
+      color: colors.TextPrimary,
+      fontSize: 26,
+      fontFamily: 'Amiri-Bold',
+    },
+    surahNameEnglish: {
+      color: colors.TextSecondary,
+      fontSize: 14,
+      marginTop: 4,
+      fontFamily: 'Lato-Regular',
+    },
+    ayahCount: {
+      color: colors.Primary,
+      fontSize: 12,
+      fontFamily: 'Lato-Regular',
+      marginRight: 5,
+    },
+    separator: {
+      height: 1,
+      backgroundColor: colors.Border,
+      marginHorizontal: 20,
+    },
+  });
