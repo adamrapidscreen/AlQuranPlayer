@@ -35,8 +35,8 @@ export const SurahHeaderArt: React.FC<SurahHeaderArtProps> = React.memo(({ surah
 
   React.useEffect(() => {
     scale.value = withRepeat(
-      withTiming(1.05, {
-        duration: 4000,
+      withTiming(1.12, {
+        duration: 3200,
         easing: Easing.inOut(Easing.ease),
       }),
       -1, // infinite

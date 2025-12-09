@@ -154,7 +154,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.Surface,
       padding: 15,
       borderRadius: 10,
-      marginTop: 18,
+      marginTop: 44,
       borderWidth: 1,
       borderColor: colors.Border,
       shadowColor: colors.TextPrimary,
@@ -162,6 +162,7 @@ const createStyles = (colors: ThemeColors) =>
       shadowOpacity: 0.1,
       shadowRadius: 6,
       elevation: 3,
+      marginBottom: 12,
     },
     debugButtonText: {
       color: colors.TextPrimary,

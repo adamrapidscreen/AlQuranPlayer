@@ -190,6 +190,7 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 10,
       marginTop: 8,
       textAlign: 'center',
+      transform: [{ translateY: 4 }],
     },
     surahItem: {
       flexDirection: 'row',
@@ -197,21 +198,22 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 20,
       paddingVertical: 15,
       position: 'relative',
+      backgroundColor: 'transparent',
     },
     surahNumber: {
       width: 40,
       height: 40,
       borderRadius: 20,
       backgroundColor: 'transparent',
-      borderWidth: 1.5,
+      borderWidth: 1.25,
       borderColor: colors.Primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     surahNumberText: {
-      color: colors.Primary,
+      color: colors.TextPrimary,
       fontFamily: 'Lato-Regular',
-      fontWeight: '600',
+      fontWeight: '700',
       fontSize: 14,
     },
     surahInfo: {
@@ -219,15 +221,16 @@ const createStyles = (colors: ThemeColors) =>
       marginLeft: 15,
     },
     surahNameArabic: {
-      color: colors.TextPrimary,
+      color: colors.Secondary,
       fontSize: 26,
       fontFamily: 'Amiri-Bold',
     },
     surahNameEnglish: {
-      color: colors.TextSecondary,
-      fontSize: 14,
+      color: colors.TextPrimary,
+      fontSize: 15,
       marginTop: 4,
       fontFamily: 'Lato-Regular',
+      fontWeight: '700',
     },
     ayahCount: {
       color: colors.Primary,

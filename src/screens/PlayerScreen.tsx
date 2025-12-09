@@ -48,6 +48,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const [sleepCountdown, setSleepCountdown] = useState<number | null>(null);
   const shouldAutoPlayRef = useRef(false);
   const previousReciterRef = useRef(selectedReciter);
+  const hasCompletedRef = useRef(false);
 
   const DownloadProgressIndicator = ({ progress }: { progress: number }) => {
     const scale = useSharedValue(1.0);
@@ -82,6 +83,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       setLoadedSurahNumber(null);
       setIsPlaying(false);
       previousReciterRef.current = selectedReciter;
+      hasCompletedRef.current = false;
     }
 
     // Reset error state when switching surahs
@@ -90,6 +92,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       setAudioLoaded(false);
       setLoadedSurahNumber(null);
       setIsPlaying(false);
+      hasCompletedRef.current = false;
     }
     loadSurah();
   }, [surahNumber, selectedReciter]);
@@ -124,6 +127,20 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       const status = await audioPlayer.getStatus();
       if (status) {
         setIsPlaying(status.isPlaying);
+        if (status.isPlaying) {
+          hasCompletedRef.current = false;
+        } else if (
+          !status.isPlaying &&
+          status.duration > 0 &&
+          status.currentTime >= status.duration - 0.5 &&
+          !hasCompletedRef.current
+        ) {
+          hasCompletedRef.current = true;
+          if (surahNumber < 114) {
+            // reuse existing navigation/audio flow
+            handleNext();
+          }
+        }
       }
     }, 1000); // Reduced frequency from 500ms to 1000ms
 
@@ -184,10 +201,12 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   const handlePlay = async () => {
     try {
       if (!audioLoaded) {
+        hasCompletedRef.current = false;
         await loadAndPlayAudio();
       } else {
         await audioPlayer.play();
         setIsPlaying(true);
+        hasCompletedRef.current = false;
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -200,6 +219,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
     try {
       await audioPlayer.pause();
       setIsPlaying(false);
+      hasCompletedRef.current = false;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error pausing audio:', errorMsg);
@@ -220,6 +240,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       }
       // Set flag to auto-play after navigation
       shouldAutoPlayRef.current = true;
+      hasCompletedRef.current = false;
       navigation.navigate('Player', { surahNumber: surahNumber + 1 });
     }
   };
@@ -237,6 +258,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       }
       // Set flag to auto-play after navigation
       shouldAutoPlayRef.current = true;
+      hasCompletedRef.current = false;
       navigation.navigate('Player', { surahNumber: surahNumber - 1 });
     }
   };
@@ -295,6 +317,7 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       setIsPlaying(true);
       setIsDownloading(false);
       setDownloadProgress(0);
+      hasCompletedRef.current = false;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error loading audio:', errorMsg);
@@ -323,17 +346,6 @@ export const PlayerScreen = ({ route, navigation }: any) => {
       verseNumber={item.numberInSurah}
     />
   );
-
-  if (loading) {
-    return (
-      <LinearGradient colors={[colors.Background, colors.Background]} style={styles.gradientContainer}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.Primary} />
-          <Text style={styles.loadingText}>Loading Surah {surahNumber}...</Text>
-        </View>
-      </LinearGradient>
-    );
-  }
 
   if (storeError || errorLocal) {
     const displayError = storeError || errorLocal;
@@ -369,11 +381,17 @@ export const PlayerScreen = ({ route, navigation }: any) => {
   }
 
   const topSectionHeight = SCREEN_HEIGHT * 0.15;
-  const middleSectionHeight = SCREEN_HEIGHT * 0.65;
-  const bottomSectionHeight = SCREEN_HEIGHT * 0.20;
+  const middleSectionHeight = SCREEN_HEIGHT * 0.70;
+  const bottomSectionHeight = SCREEN_HEIGHT * 0.15;
 
   return (
     <LinearGradient colors={[colors.Background, colors.Background]} style={styles.gradientContainer}>
+      {loading && (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <ActivityIndicator size="large" color={colors.Primary} />
+        </View>
+      )}
+
       {/* Top Section (15%): SurahHeaderArt */}
       <View style={[styles.topSection, { height: topSectionHeight }]}>
         <SurahHeaderArt surahNumber={surahNumber} />
@@ -497,7 +515,7 @@ const createStyles = (colors: ThemeColors) =>
       right: 0,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingBottom: 50,
+      paddingBottom: 48,
       zIndex: 100, // Ensure it's on top layer
     },
     listContent: {
@@ -507,6 +525,17 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    loadingOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.04)',
+      zIndex: 30,
     },
     loadingText: {
       color: colors.TextPrimary,
